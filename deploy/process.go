@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/EMSSConsulting/Depro/waiter"
+	"github.com/EMSSConsulting/waiter"
 	"github.com/hashicorp/consul/api"
 	"github.com/mitchellh/cli"
 )
@@ -21,7 +21,7 @@ type Operation struct {
 
 // Run executes the process for a deployment operation
 func (o *Operation) Run() error {
-	o.wait = waiter.NewWait(
+	o.wait = waiter.NewWaiter(
 		o.Client,
 		o.Config.VersionPath(o.Version),
 		o.Config.Nodes,

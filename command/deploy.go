@@ -27,7 +27,7 @@ func (c *DeployCommand) Help() string {
 
     Options:
 
-        -server=127.0.0.1:8400 RPC address of a Consul agent in the cluster
+        -server=127.0.0.1:8500 HTTP address of a Consul agent in the cluster
         -prefix=deploy/myapp
         -nodes=3
         -config=/etc/depro/myapp.json
@@ -72,12 +72,10 @@ func (c *DeployCommand) deployVersion(version string) error {
 	apiConfig.WaitTime = c.config.WaitTime
 
 	client, _ := api.NewClient(apiConfig)
-	kv := client.KV()
 
 	deploy := deploy.Operation{
 		Version: version,
 		Client:  client,
-		KV:      kv,
 		Config:  c.config,
 	}
 

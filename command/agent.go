@@ -95,7 +95,6 @@ func (c *AgentCommand) Run(args []string) int {
 		return 2
 	}
 
-	c.UI.Output(fmt.Sprintf("Version '%s' successfully deployed", version))
 	return 0
 }
 

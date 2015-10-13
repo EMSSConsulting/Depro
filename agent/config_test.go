@@ -83,17 +83,3 @@ func TestMerge(t *testing.T) {
 		t.Fatal("bad waitTime field")
 	}
 }
-
-func TestVersionPath(t *testing.T) {
-	depl := Deployment{
-		Prefix: "myapp/test/version/",
-	}
-
-	if depl.VersionPath("1234") != "myapp/test/version/1234" {
-		t.Fatalf("Version path not generated correctly, got '%s' but expected '%s'", depl.VersionPath("1234"), "myapp/test/version/1234")
-	}
-
-	if depl.VersionPath("1234/") != "myapp/test/version/1234" {
-		t.Fatalf("Version path not generated correctly, got '%s' but expected '%s'", depl.VersionPath("1234"), "myapp/test/version/1234")
-	}
-}

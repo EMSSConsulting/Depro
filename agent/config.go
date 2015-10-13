@@ -21,7 +21,7 @@ type Config struct {
 	WaitTimeRaw string        `json:"wait"`
 	AllowStale  bool          `json:"allowStale"`
 
-	Deployments []Deployment `json:"deployments"`
+	Deployments []DeploymentConfig `json:"deployments"`
 }
 
 // Merge the second command entry into the first and return a reference
@@ -46,7 +46,7 @@ func Merge(a, b *Config) *Config {
 		result.AllowStale = b.AllowStale
 	}
 
-	result.Deployments = make([]Deployment, 0, len(a.Deployments)+len(b.Deployments))
+	result.Deployments = make([]DeploymentConfig, 0, len(a.Deployments)+len(b.Deployments))
 	result.Deployments = append(result.Deployments, a.Deployments...)
 	result.Deployments = append(result.Deployments, b.Deployments...)
 
@@ -64,7 +64,7 @@ func DefaultConfig() *Config {
 		WaitTime:    10 * time.Minute,
 		WaitTimeRaw: "10m",
 		AllowStale:  true,
-		Deployments: []Deployment{},
+		Deployments: []DeploymentConfig{},
 	}
 
 	return &config

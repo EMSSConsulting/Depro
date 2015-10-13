@@ -9,31 +9,62 @@ import (
 
 	"github.com/EMSSConsulting/waiter"
 	"github.com/hashicorp/consul/api"
+	"github.com/mitchellh/cli"
 )
 
 // Deployment describes an individual deployment including the key prefix
 // and scripts which should be executed to run the deployment.
-type Deployment struct {
+type DeploymentConfig struct {
 	ID      string `json:"id"`
 	Path    string `json:"path"`
 	Prefix  string `json:"prefix"`
 	Deploy  string `json:"deploy"`
 	Rollout string `json:"rollout"`
 	Clean   string `json:"clean"`
+}
 
-	state    chan string
-	agent    *Operation
-	client   *api.Client
-	session  *waiter.Session
-	versions *Version
+// Deployment describes the internal state of a deployment which consists
+// of multiple versions.
+// Deployments are each responsible for controlling the lifespan of their
+// session as they may be created and destroyed at any time.
+type Deployment struct {
+	Config *DeploymentConfig
+
+	agentConfig *Config
+	client      *api.Client
+	ui          cli.Ui
+	session     *waiter.Session
+	versions    []Version
+}
+
+func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
+	d := &Deployment{
+		Config: config,
+
+		agentConfig: operation.Config,
+		client:      operation.Client,
+		ui:          operation.UI,
+	}
+
+	d.versions = make([]Version, 0)
+
+	return d
 }
 
 func (d *Deployment) versionPrefix(version string) string {
-	return fmt.Sprintf("%s/%s", strings.Trim(d.Prefix, "/"), strings.Trim(version, "/"))
+	return fmt.Sprintf("%s/%s", strings.Trim(d.Config.Prefix, "/"), strings.Trim(version, "/"))
+}
+
+func (d *Deployment) fullPath(version string) string {
+	if version == "" {
+		return d.Config.Path
+	}
+	
+	return path.Join(d.Config.Path, version)
 }
 
 func (d *Deployment) directory(version string) (os.FileInfo, error) {
-	f, err := os.Open(d.Path)
+	f, err := os.Open(d.Config.Path)
 
 	defer f.Close()
 
@@ -64,25 +95,25 @@ func (d *Deployment) directory(version string) (os.FileInfo, error) {
 	return nil, fmt.Errorf("Could not find a deployment directory called '%s'", version)
 }
 
-func (d *Deployment) currentVersion() (string, error) {
-	currentVersionFilePath := path.Join(d.Path, "current")
+func (d *Deployment) currentVersion() string {
+	currentVersionFilePath := path.Join(d.Config.Path, "current")
 
 	fContents, err := ioutil.ReadFile(currentVersionFilePath)
 	if err != nil {
-		return "", err
+		return ""
 	}
 
-	return string(fContents), nil
+	return string(fContents)
 }
 
 func (d *Deployment) updateCurrentVersion(version string) error {
-	currentVersionFilePath := path.Join(d.Path, "current")
+	currentVersionFilePath := path.Join(d.Config.Path, "current")
 
 	return ioutil.WriteFile(currentVersionFilePath, []byte(version), 0)
 }
 
 func (d *Deployment) availableVersions() ([]string, error) {
-	f, err := os.Open(d.Path)
+	f, err := os.Open(d.Config.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +124,7 @@ func (d *Deployment) availableVersions() ([]string, error) {
 	}
 
 	if !fInfo.IsDir() {
-		return nil, fmt.Errorf("Expected deployment path '%s' to be a directory", d.Path)
+		return nil, fmt.Errorf("Expected deployment path '%s' to be a directory", d.Config.Path)
 	}
 
 	children, err := f.Readdir(-1)
@@ -112,7 +143,7 @@ func (d *Deployment) availableVersions() ([]string, error) {
 }
 
 func (d *Deployment) Run() error {
-	session, err := waiter.NewSession(d.client, d.ID)
+	session, err := waiter.NewSession(d.client, d.Config.ID)
 	defer session.Close()
 
 	if err != nil {

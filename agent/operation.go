@@ -17,17 +17,17 @@ type Operation struct {
 // Run executes the process for a deployment operation
 func (o *Operation) Run() error {
 	for _, deployment := range o.Config.Deployments {
-		deployment.agent = o
+		d := NewDeployment(o, &deployment)
 
-		go func(deployment *Deployment) {
-			o.UI.Info(fmt.Sprintf("Starting agent '%s'", deployment.ID))
-			err := deployment.Run()
+		go func() {
+			o.UI.Info(fmt.Sprintf("Starting agent '%s'", d.Config.ID))
+			err := d.Run()
 			if err != nil {
-				o.UI.Error(fmt.Sprintf("Failed to run agent '%s': %s", deployment.ID, err))
+				o.UI.Error(fmt.Sprintf("Failed to run agent '%s': %s", d.Config.ID, err))
 			} else {
-				o.UI.Info(fmt.Sprintf("Stopping agent '%s'", deployment.ID))
+				o.UI.Info(fmt.Sprintf("Stopping agent '%s'", d.Config.ID))
 			}
-		}(&deployment)
+		}()
 	}
 
 	return nil

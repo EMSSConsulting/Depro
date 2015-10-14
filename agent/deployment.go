@@ -18,6 +18,7 @@ type DeploymentConfig struct {
 	ID      string   `json:"id"`
 	Path    string   `json:"path"`
 	Prefix  string   `json:"prefix"`
+	Shell   string   `json:"shell"`
 	Deploy  []string `json:"deploy"`
 	Rollout []string `json:"rollout"`
 	Clean   []string `json:"clean"`
@@ -34,7 +35,7 @@ type Deployment struct {
 	client      *api.Client
 	ui          cli.Ui
 	session     *waiter.Session
-	versions    []Version
+	versions    map[string]*Version
 }
 
 func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
@@ -44,9 +45,8 @@ func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
 		agentConfig: operation.Config,
 		client:      operation.Client,
 		ui:          operation.UI,
+		versions:    map[string]*Version{},
 	}
-
-	d.versions = make([]Version, 0)
 
 	return d
 }
@@ -142,6 +142,119 @@ func (d *Deployment) availableVersions() ([]string, error) {
 	return versions, nil
 }
 
+func (d *Deployment) fetchVersions(waitIndex uint64) ([]string, uint64, error) {
+	kv := d.client.KV()
+
+	keys, meta, err := kv.Keys(fmt.Sprintf("%s/", d.Config.Prefix), "/", &api.QueryOptions{
+		WaitIndex: waitIndex,
+	})
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	fixedKeys := keys[:0]
+	for _, key := range keys {
+		fixedKey := strings.Trim(key[len(d.Config.Prefix):], "/")
+		if fixedKey == "" {
+			continue
+		}
+
+		if fixedKey == "current" {
+			continue
+		}
+
+		fixedKeys = append(fixedKeys, fixedKey)
+	}
+
+	return fixedKeys, meta.LastIndex, nil
+}
+
+func (d *Deployment) watchVersions() error {
+	versions, err := d.availableVersions()
+	if err != nil {
+		return err
+	}
+
+	lastWaitIndex := uint64(0)
+
+	for _, version := range versions {
+		d.versions[version] = newVersion(d, version)
+	}
+
+	done := false
+
+	go func() {
+		select {
+		case <-makeShutdownCh():
+			done = true
+			d.ui.Info(fmt.Sprintf("[%s] shutting down", d.Config.ID))
+		}
+	}()
+
+	for !done {
+		newVersions, nextWaitIndex, err := d.fetchVersions(lastWaitIndex)
+		if err != nil {
+			return err
+		}
+
+		newVersionSet := map[string]struct{}{}
+		for _, version := range newVersions {
+			newVersionSet[version] = struct{}{}
+
+			_, exists := d.versions[version]
+
+			if !exists {
+				d.ui.Output(fmt.Sprintf("[%s] found '%s'", d.Config.ID, version))
+				d.versions[version] = newVersion(d, version)
+			}
+
+			v := d.versions[version]
+			if !v.registered {
+				go func() {
+					err := v.register()
+					if err != nil {
+						d.ui.Error(fmt.Sprintf("[%s] failed '%s': %s", d.Config.ID, version, err))
+					}
+				}()
+			}
+
+			if !exists {
+				go func(version *Version) {
+					output, err := version.deploy()
+					if err != nil {
+						d.ui.Error(fmt.Sprintf("[%s] version '%s' deployment failed: %s", d.Config.ID, version.ID, err))
+					}
+					d.ui.Info(output)
+				}(v)
+			}
+		}
+
+		for id, version := range d.versions {
+			_, exists := newVersionSet[id]
+			if !exists {
+				d.ui.Output(fmt.Sprintf("[%s] removed '%s'", d.Config.ID, id))
+				go func(id string, version *Version) {
+					output, err := version.clean()
+					if err != nil {
+						d.ui.Error(fmt.Sprintf("[%s]@%s cleanup failed: %s", d.Config.ID, version.ID, err))
+					}
+					d.ui.Info(output)
+				}(id, version)
+			}
+		}
+
+		lastWaitIndex = nextWaitIndex
+
+	}
+
+	return nil
+}
+
+func (d *Deployment) watchCurrentVersion() error {
+	return nil
+}
+
 func (d *Deployment) Run() error {
 	session, err := waiter.NewSession(d.client, d.Config.ID)
 	defer session.Close()
@@ -152,5 +265,5 @@ func (d *Deployment) Run() error {
 
 	d.session = session
 
-	return nil
+	return d.watchVersions()
 }

@@ -28,7 +28,6 @@ func (c *AgentCommand) Help() string {
     Options:
 
         -server=127.0.0.1:8500 HTTP address of a Consul agent in the cluster
-        -deploy="deploy/myapp:deployMyApp.sh {{Version}}:rolloutMyApp.sh {{Version}}:cleanMyApp.sh {{Version}}"
         -config-dir=/etc/depro/
         -config-file=/etc/depro/myapp.json
     `
@@ -46,6 +45,12 @@ func (c *AgentCommand) setupConfig() error {
 	cmdFlags.Var((*AppendSliceValue)(&configFiles), "config-dir", "directory of json files to read")
 	cmdFlags.Var((*AppendSliceValue)(&configFiles), "config-file", "json file to read config from")
 
+	cmdFlags.StringVar(&c.config.Server, "server", "", "")
+
+	if err := cmdFlags.Parse(c.args); err != nil {
+		return err
+	}
+
 	if len(configFiles) > 0 {
 		cFile, err := agent.ReadConfig(configFiles)
 		if err != nil {
@@ -53,12 +58,6 @@ func (c *AgentCommand) setupConfig() error {
 		}
 
 		c.config = agent.Merge(c.config, cFile)
-	}
-
-	cmdFlags.StringVar(&c.config.Server, "server", "", "")
-
-	if err := cmdFlags.Parse(c.args); err != nil {
-		return err
 	}
 
 	return nil
@@ -75,6 +74,7 @@ func (c *AgentCommand) runAgent() error {
 	agent := agent.Operation{
 		Client: client,
 		Config: c.config,
+		UI:     c.UI,
 	}
 
 	return agent.Run()

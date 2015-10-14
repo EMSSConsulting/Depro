@@ -77,6 +77,7 @@ func (c *DeployCommand) deployVersion(version string) error {
 		Version: version,
 		Client:  client,
 		Config:  c.config,
+		UI:      c.UI,
 	}
 
 	return deploy.Run()

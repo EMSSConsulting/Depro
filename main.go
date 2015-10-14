@@ -16,6 +16,7 @@ func realMain() int {
 	cli := &cli.CLI{
 		Name:     "Depro",
 		Version:  Version,
+		Commands: Commands,
 		Args:     args,
 		HelpFunc: cli.BasicHelpFunc("depro"),
 	}

@@ -95,7 +95,9 @@ func (v *Version) clean() (string, error) {
 		return output, err
 	}
 
-	close(v.state)
+	if v.state != nil {
+		close(v.state)
+	}
 	return output, nil
 }
 

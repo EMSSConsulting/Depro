@@ -41,5 +41,11 @@ func init() {
 				UI: ui,
 			}, nil
 		},
+
+		"agent": func() (cli.Command, error) {
+			return &command.AgentCommand{
+				UI: ui,
+			}, nil
+		},
 	}
 }

@@ -15,12 +15,12 @@ import (
 // Deployment describes an individual deployment including the key prefix
 // and scripts which should be executed to run the deployment.
 type DeploymentConfig struct {
-	ID      string `json:"id"`
-	Path    string `json:"path"`
-	Prefix  string `json:"prefix"`
-	Deploy  string `json:"deploy"`
-	Rollout string `json:"rollout"`
-	Clean   string `json:"clean"`
+	ID      string   `json:"id"`
+	Path    string   `json:"path"`
+	Prefix  string   `json:"prefix"`
+	Deploy  []string `json:"deploy"`
+	Rollout []string `json:"rollout"`
+	Clean   []string `json:"clean"`
 }
 
 // Deployment describes the internal state of a deployment which consists
@@ -59,7 +59,7 @@ func (d *Deployment) fullPath(version string) string {
 	if version == "" {
 		return d.Config.Path
 	}
-	
+
 	return path.Join(d.Config.Path, version)
 }
 

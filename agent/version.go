@@ -3,10 +3,9 @@ package agent
 import (
 	"fmt"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
+	"github.com/EMSSConsulting/Depro/util"
 	"github.com/EMSSConsulting/waiter"
 	"github.com/hashicorp/consul/api"
 )
@@ -16,6 +15,7 @@ type Version struct {
 
 	deployment *Deployment
 	state      chan string
+	close      chan struct{}
 	client     *api.Client
 	customer   *waiter.Customer
 	registered bool
@@ -26,9 +26,20 @@ func newVersion(deployment *Deployment, id string) *Version {
 		ID:         id,
 		deployment: deployment,
 		client:     deployment.client,
+		state:      make(chan string),
+		close:      make(chan struct{}),
 	}
 
 	v.customer = waiter.NewCustomer(v.client, deployment.versionPrefix(id), deployment.agentConfig.Name, v.state)
+
+	go func() {
+		select {
+		case <-v.close:
+			close(v.state)
+			delete(v.deployment.versions, v.ID)
+			v.state = make(chan string)
+		}
+	}()
 
 	return v
 }
@@ -95,9 +106,8 @@ func (v *Version) clean() (string, error) {
 		return output, err
 	}
 
-	if v.state != nil {
-		close(v.state)
-	}
+	v.close <- struct{}{}
+
 	return output, nil
 }
 
@@ -112,15 +122,13 @@ func (v *Version) register() error {
 	// Function to shutdown this version's goroutines when the application
 	// requests an exit.
 	go func() {
-		shutdownCh := makeShutdownCh()
+		shutdownCh := util.MakeShutdownCh()
 
 		select {
 		case <-shutdownCh:
-			if v.state != nil {
-				close(v.state)
-			}
-			v.state = make(chan string)
+			v.close <- struct{}{}
 		case <-doneCh:
+			v.close <- struct{}{}
 		}
 	}()
 

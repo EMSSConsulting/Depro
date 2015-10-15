@@ -154,9 +154,9 @@ func (v *Version) getExecutor() *Executor {
 		Arguments: []string{"--login"},
 		Extension: ".sh",
 		Environment: []string{
-			fmt.Sprintf("VERSION='%s'", v.ID),
-			fmt.Sprintf("NODE='%s'", v.deployment.agentConfig.Name),
-			fmt.Sprintf("DEPLOYMENT='%s'", v.deployment.Config.ID),
+			fmt.Sprintf("VERSION=%s", v.ID),
+			fmt.Sprintf("NODE=%s", v.deployment.agentConfig.Name),
+			fmt.Sprintf("DEPLOYMENT=%s", v.deployment.Config.ID),
 		},
 		Directory: v.fullPath(),
 	}

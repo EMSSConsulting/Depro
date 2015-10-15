@@ -46,22 +46,27 @@ func newVersion(deployment *Deployment, id string) *Version {
 
 func (v *Version) deploy() (string, error) {
 	v.setState("deploying")
+	output := fmt.Sprintf("Preparing directory '%s'\n", v.fullPath())
+
 	err := v.recreateDirectory()
 	if err != nil {
 		v.state <- "failed"
 		return "", err
 	}
 
-	executor := v.getExecutor()
+	if len(v.deployment.Config.Deploy) > 0 {
+		executor := v.getExecutor()
 
-	task := &Task{
-		Instructions: v.deployment.Config.Deploy,
-	}
+		task := &Task{
+			Instructions: v.deployment.Config.Deploy,
+		}
 
-	output, err := executor.Run(task)
-	if err != nil {
-		v.state <- "failed"
-		return output, err
+		cmdOutput, err := executor.Run(task)
+		output = output + cmdOutput
+		if err != nil {
+			v.state <- "failed"
+			return output, err
+		}
 	}
 
 	v.state <- "available"

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/EMSSConsulting/Depro/executor"
 	"github.com/EMSSConsulting/Depro/util"
 	"github.com/EMSSConsulting/waiter"
 	"github.com/hashicorp/consul/api"
@@ -55,14 +56,16 @@ func (v *Version) deploy() (string, error) {
 	}
 
 	if len(v.deployment.Config.Deploy) > 0 {
-		executor := v.getExecutor()
+		ex := v.getExecutor()
 
-		task := &Task{
-			Instructions: v.deployment.Config.Deploy,
+		task, err := executor.NewTask(v.deployment.Config.Deploy, nil, nil)
+		if err != nil {
+			v.state <- "failed"
+			return output, err
 		}
 
-		cmdOutput, err := executor.Run(task)
-		output = output + cmdOutput
+		cmdOutput, err := ex.RunOutput(task)
+		output = output + string(cmdOutput)
 		if err != nil {
 			v.state <- "failed"
 			return output, err
@@ -74,14 +77,19 @@ func (v *Version) deploy() (string, error) {
 }
 
 func (v *Version) rollout() (string, error) {
-	v.setState("starting")
-	executor := v.getExecutor()
+	output := ""
 
-	task := &Task{
-		Instructions: v.deployment.Config.Rollout,
+	v.setState("starting")
+	ex := v.getExecutor()
+
+	task, err := executor.NewTask(v.deployment.Config.Rollout, nil, nil)
+	if err != nil {
+		v.state <- "failed"
+		return output, err
 	}
 
-	output, err := executor.Run(task)
+	cmdOutput, err := ex.RunOutput(task)
+	output = output + string(cmdOutput)
 	if err != nil {
 		v.state <- "failed"
 		return output, err
@@ -95,14 +103,16 @@ func (v *Version) clean() (string, error) {
 	output := ""
 
 	if len(v.deployment.Config.Clean) > 0 {
-		executor := v.getExecutor()
+		ex := v.getExecutor()
 
-		task := &Task{
-			Instructions: v.deployment.Config.Clean,
+		task, err := executor.NewTask(v.deployment.Config.Clean, nil, nil)
+		if err != nil {
+			v.state <- "failed"
+			return output, err
 		}
 
-		cmdOutput, _ := executor.Run(task)
-		output = output + cmdOutput
+		cmdOutput, err := ex.RunOutput(task)
+		output = output + string(cmdOutput)
 	}
 
 	err := v.removeDirectory()
@@ -152,30 +162,13 @@ func (v *Version) setState(state string) {
 	}
 }
 
-func (v *Version) getExecutor() *Executor {
-	executor := &Executor{
-		Command:   "/usr/bin/sh",
-		Arguments: []string{"--login"},
-		Extension: ".sh",
-		Environment: []string{
-			fmt.Sprintf("VERSION=%s", v.ID),
-			fmt.Sprintf("NODE=%s", v.deployment.agentConfig.Name),
-			fmt.Sprintf("DEPLOYMENT=%s", v.deployment.Config.ID),
-		},
-		Directory: v.fullPath(),
-	}
+func (v *Version) getExecutor() executor.Executor {
+	executor := executor.NewExecutor(strings.ToLower(v.deployment.Config.Shell))
 
-	switch strings.ToLower(v.deployment.Config.Shell) {
-	case "cmd":
-		executor.Command = "cmd.exe"
-		executor.Arguments = []string{"/Q", "/C"}
-		executor.Extension = ".bat"
-
-	case "powershell":
-		executor.Command = "powershell.exe"
-		executor.Arguments = []string{"-noprofile", "-noninteractive", "-executionpolicy", "Bypass", "-command"}
-		executor.Extension = ".ps1"
-	}
+	executor.Environment["VERSION"] = v.ID
+	executor.Environment["NODE"] = v.deployment.agentConfig.Name
+	executor.Environment["DEPLOYMENT"] = v.deployment.Config.ID
+	executor.Directory = v.fullPath()
 
 	return executor
 }

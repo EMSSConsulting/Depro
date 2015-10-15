@@ -5,6 +5,9 @@ import (
 	"os"
 
 	"github.com/mitchellh/cli"
+
+	"github.com/EMSSConsulting/Depro/common"
+	_ "github.com/EMSSConsulting/Depro/executor/shells" // Import the default shell providers
 )
 
 func main() {
@@ -16,7 +19,7 @@ func realMain() int {
 	cli := &cli.CLI{
 		Name:     "Depro",
 		Version:  Version,
-		Commands: Commands,
+		Commands: common.Commands(),
 		Args:     args,
 		HelpFunc: cli.BasicHelpFunc("depro"),
 	}

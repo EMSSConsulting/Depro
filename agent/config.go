@@ -24,6 +24,18 @@ type Config struct {
 	Deployments []DeploymentConfig `json:"deployments"`
 }
 
+// Deployment describes an individual deployment including the key prefix
+// and scripts which should be executed to run the deployment.
+type DeploymentConfig struct {
+	ID      string   `json:"id"`
+	Path    string   `json:"path"`
+	Prefix  string   `json:"prefix"`
+	Shell   string   `json:"shell"`
+	Deploy  []string `json:"deploy"`
+	Rollout []string `json:"rollout"`
+	Clean   []string `json:"clean"`
+}
+
 // Merge the second command entry into the first and return a reference
 // to the first.
 func Merge(a, b *Config) *Config {
@@ -61,8 +73,8 @@ func DefaultConfig() *Config {
 	config := Config{
 		Name:        hostname,
 		Server:      "127.0.0.1:8500",
-		WaitTime:    10 * time.Minute,
-		WaitTimeRaw: "10m",
+		WaitTime:    5 * time.Minute,
+		WaitTimeRaw: "5m",
 		AllowStale:  true,
 		Deployments: []DeploymentConfig{},
 	}

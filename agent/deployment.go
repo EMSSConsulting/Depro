@@ -13,18 +13,6 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-// Deployment describes an individual deployment including the key prefix
-// and scripts which should be executed to run the deployment.
-type DeploymentConfig struct {
-	ID      string   `json:"id"`
-	Path    string   `json:"path"`
-	Prefix  string   `json:"prefix"`
-	Shell   string   `json:"shell"`
-	Deploy  []string `json:"deploy"`
-	Rollout []string `json:"rollout"`
-	Clean   []string `json:"clean"`
-}
-
 // Deployment describes the internal state of a deployment which consists
 // of multiple versions.
 // Deployments are each responsible for controlling the lifespan of their
@@ -199,18 +187,9 @@ func (d *Deployment) fetchCurrentVersion(waitIndex uint64) (string, uint64, erro
 	return string(key.Value), meta.LastIndex, nil
 }
 
-func sliceToMap(slice []string) map[string]struct{} {
-	m := map[string]struct{}{}
-	for _, v := range slice {
-		m[v] = struct{}{}
-	}
-
-	return m
-}
-
 func (d *Deployment) diffVersions(oldVersions, newVersions []string) {
-	oldVersionsSet := sliceToMap(oldVersions)
-	newVersionsSet := sliceToMap(newVersions)
+	oldVersionsSet := util.SliceToMap(oldVersions)
+	newVersionsSet := util.SliceToMap(newVersions)
 
 	for _, id := range oldVersions {
 		_, exists := newVersionsSet[id]
@@ -239,16 +218,8 @@ func (d *Deployment) watchVersions() error {
 	versions := []string{}
 
 	lastWaitIndex := uint64(0)
-	done := false
 
-	go func() {
-		select {
-		case <-util.MakeShutdownCh():
-			done = true
-		}
-	}()
-
-	for !done {
+	for range util.NotShutdown() {
 		newVersions, nextWaitIndex, err := d.fetchVersions(lastWaitIndex)
 		if err != nil {
 			return err
@@ -268,16 +239,7 @@ func (d *Deployment) watchCurrentVersion() error {
 
 	lastWaitIndex := uint64(0)
 
-	done := false
-
-	go func() {
-		select {
-		case <-util.MakeShutdownCh():
-			done = true
-		}
-	}()
-
-	for !done {
+	for range util.NotShutdown() {
 		newCurrentVersion, newWaitIndex, err := d.fetchCurrentVersion(lastWaitIndex)
 		if err != nil {
 			return err

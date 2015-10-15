@@ -14,6 +14,21 @@ type Operation struct {
 	Client *api.Client
 }
 
+func NewOperation(ui cli.Ui, config *Config) Operation {
+	apiConfig := api.DefaultConfig()
+
+	apiConfig.Address = config.Server
+	apiConfig.WaitTime = config.WaitTime
+
+	client, _ := api.NewClient(apiConfig)
+
+	return Operation{
+		Client: client,
+		Config: config,
+		UI:     ui,
+	}
+}
+
 // Run executes the process for a deployment operation
 func (o *Operation) Run() error {
 	shutdownCh := make(chan struct{})

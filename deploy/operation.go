@@ -19,6 +19,22 @@ type Operation struct {
 	wait *waiter.Wait
 }
 
+func NewOperation(ui cli.Ui, config *Config, version string) Operation {
+	apiConfig := api.DefaultConfig()
+
+	apiConfig.Address = config.Server
+	apiConfig.WaitTime = config.WaitTime
+
+	client, _ := api.NewClient(apiConfig)
+
+	return Operation{
+		Version: version,
+		Client:  client,
+		Config:  config,
+		UI:      ui,
+	}
+}
+
 func (o *Operation) runDeployment() error {
 	o.wait = waiter.NewWaiter(
 		o.Client,

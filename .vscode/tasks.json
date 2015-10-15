@@ -1,0 +1,73 @@
+// Available variables which can be used inside of strings.
+// ${workspaceRoot}: the root folder of the team
+// ${file}: the current opened file
+// ${fileBasename}: the current opened file's basename
+// ${fileDirname}: the current opened file's dirname
+// ${fileExtname}: the current opened file's extension
+// ${cwd}: the current working directory of the spawned process
+
+{
+	"version": "0.1.0",
+
+	"command": "go",
+	"isShellCommand": true,
+	"showOutput": "never",
+	
+	"options": {
+		"cwd": "${fileDirname}"
+	},
+	
+	"echoCommand": false,
+	
+	"tasks": [
+		{
+			"taskName": "build",
+			"isBuildCommand": true,
+			"args": [],
+			"problemMatcher": {
+				"owner": "go",
+				// The file name for reported problems is relative to the current working directory.
+				"fileLocation": "absolute",
+				// The actual pattern to match problems in the output.
+				"pattern": {
+					"regexp": "^\\s*(.+)\\:(\\d+)\\:(.+)$",
+					"file": 1,
+					"location":2,
+					"message": 3	
+				}
+			}
+		},
+		{
+			"taskName": "test",
+			"isTestCommand": true,
+			"problemMatcher": {
+				"owner": "go",
+				// The file name for reported problems is relative to the current working directory.
+				"fileLocation": "absolute",
+				// The actual pattern to match problems in the output.
+				"pattern": {
+					"regexp": "^\\s*(.+)\\:(\\d+)\\:(.+)$",
+					"file": 1,
+					"location":2,
+					"message": 3	
+				}
+			}
+		},
+		{
+			"taskName": "get"
+		},
+		{
+			"taskName": "doc",
+			"showOutput": "always"
+		},
+		{
+			"taskName": "fmt"
+		},
+		{
+			"taskName": "fix"
+		},
+		{
+			"taskName": "vet"
+		}
+	]
+}

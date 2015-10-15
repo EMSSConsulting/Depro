@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/EMSSConsulting/waiter"
 	"github.com/hashicorp/consul/api"
@@ -18,8 +19,7 @@ type Operation struct {
 	wait *waiter.Wait
 }
 
-// Run executes the process for a deployment operation
-func (o *Operation) Run() error {
+func (o *Operation) runDeployment() error {
 	o.wait = waiter.NewWaiter(
 		o.Client,
 		o.Config.VersionPath(o.Version),
@@ -81,7 +81,7 @@ func (o *Operation) Run() error {
 				}
 			}
 			if successful {
-				o.UI.Info(fmt.Sprintf("Version '%s' deployed to all nodes, ready for rollout.", o.Version))
+				o.UI.Info(fmt.Sprintf("Version '%s' deployed to all nodes, starting rollout.", o.Version))
 			} else {
 				return fmt.Errorf("Version '%s' deployment failed", o.Version)
 			}
@@ -91,4 +91,36 @@ func (o *Operation) Run() error {
 			return err
 		}
 	}
+}
+
+func (o *Operation) runRollout() error {
+	kv := o.Client.KV()
+
+	_, err := kv.Put(&api.KVPair{
+		Key:   fmt.Sprintf("%s/current", strings.Trim(o.Config.Prefix, "/")),
+		Value: []byte(o.Version),
+	}, nil)
+
+	if err != nil {
+		o.UI.Error(fmt.Sprintf("Version '%s' could not be marked for rollout: %s", o.Version, err))
+		return err
+	}
+
+	o.UI.Info(fmt.Sprintf("Version '%s' marked for rollout", o.Version))
+	return nil
+}
+
+// Run executes the process for a deployment operation
+func (o *Operation) Run() error {
+	err := o.runDeployment()
+	if err != nil {
+		return err
+	}
+
+	err = o.runRollout()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -48,7 +48,7 @@ func (v *Version) deploy() (string, error) {
 	v.setState("deploying")
 	err := v.recreateDirectory()
 	if err != nil {
-		v.setState("failed")
+		v.state <- "failed"
 		return "", err
 	}
 
@@ -60,11 +60,11 @@ func (v *Version) deploy() (string, error) {
 
 	output, err := executor.Run(task)
 	if err != nil {
-		v.setState("failed")
+		v.state <- "failed"
 		return output, err
 	}
 
-	v.setState("available")
+	v.state <- "available"
 	return output, nil
 }
 
@@ -78,30 +78,30 @@ func (v *Version) rollout() (string, error) {
 
 	output, err := executor.Run(task)
 	if err != nil {
-		v.setState("failed")
+		v.state <- "failed"
 		return output, err
 	}
 
-	v.setState("active")
+	v.state <- "active"
 	return output, nil
 }
 
 func (v *Version) clean() (string, error) {
-	executor := v.getExecutor()
+	output := ""
 
-	task := &Task{
-		Instructions: v.deployment.Config.Clean,
+	if len(v.deployment.Config.Clean) > 0 {
+		executor := v.getExecutor()
+
+		task := &Task{
+			Instructions: v.deployment.Config.Clean,
+		}
+
+		cmdOutput, _ := executor.Run(task)
+		output = output + cmdOutput
 	}
 
-	output, err := executor.Run(task)
+	err := v.removeDirectory()
 	if err != nil {
-		v.setState("failed")
-		return output, err
-	}
-
-	err = v.removeDirectory()
-	if err != nil {
-		v.setState("failed")
 		return output, err
 	}
 

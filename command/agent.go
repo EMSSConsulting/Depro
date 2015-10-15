@@ -3,9 +3,11 @@ package command
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/EMSSConsulting/Depro/agent"
+	"github.com/EMSSConsulting/Depro/util"
 	"github.com/hashicorp/consul/api"
 	"github.com/mitchellh/cli"
 )
@@ -88,6 +90,19 @@ func (c *AgentCommand) Run(args []string) int {
 		c.UI.Error(err.Error())
 		return 1
 	}
+
+	go func() {
+		select {
+		case <-util.MakeShutdownCh():
+			c.UI.Info("Shutting down agents, waiting for inflight requests and running tasks to complete.")
+		}
+
+		select {
+		case <-util.MakeShutdownCh():
+			c.UI.Info("Forcing inflight requests to complete and exiting running tasks.")
+			os.Exit(1)
+		}
+	}()
 
 	err = c.runAgent()
 	if err != nil {

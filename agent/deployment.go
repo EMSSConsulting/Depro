@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/EMSSConsulting/Depro/util"
 	"github.com/EMSSConsulting/waiter"
 	"github.com/hashicorp/consul/api"
 	"github.com/mitchellh/cli"
@@ -36,6 +37,11 @@ type Deployment struct {
 	ui          cli.Ui
 	session     *waiter.Session
 	versions    map[string]*Version
+
+	deployVersion   chan string
+	rolloutVersion  chan string
+	cleanVersion    chan string
+	registerVersion chan string
 }
 
 func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
@@ -46,6 +52,11 @@ func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
 		client:      operation.Client,
 		ui:          operation.UI,
 		versions:    map[string]*Version{},
+
+		deployVersion:   make(chan string),
+		rolloutVersion:  make(chan string),
+		cleanVersion:    make(chan string),
+		registerVersion: make(chan string),
 	}
 
 	return d
@@ -170,25 +181,70 @@ func (d *Deployment) fetchVersions(waitIndex uint64) ([]string, uint64, error) {
 	return fixedKeys, meta.LastIndex, nil
 }
 
-func (d *Deployment) watchVersions() error {
-	versions, err := d.availableVersions()
+func (d *Deployment) fetchCurrentVersion(waitIndex uint64) (string, uint64, error) {
+	kv := d.client.KV()
+
+	key, meta, err := kv.Get(fmt.Sprintf("%s/current", d.Config.Prefix), &api.QueryOptions{
+		WaitIndex: waitIndex,
+	})
+
 	if err != nil {
-		return err
+		return "", 0, err
 	}
+
+	if key == nil {
+		return "", meta.LastIndex, nil
+	}
+
+	return string(key.Value), meta.LastIndex, nil
+}
+
+func sliceToMap(slice []string) map[string]struct{} {
+	m := map[string]struct{}{}
+	for _, v := range slice {
+		m[v] = struct{}{}
+	}
+
+	return m
+}
+
+func (d *Deployment) diffVersions(oldVersions, newVersions []string) {
+	oldVersionsSet := sliceToMap(oldVersions)
+	newVersionsSet := sliceToMap(newVersions)
+
+	for _, id := range oldVersions {
+		_, exists := newVersionsSet[id]
+		if !exists {
+			d.cleanVersion <- id
+		}
+	}
+
+	for _, id := range newVersions {
+		_, exists := oldVersionsSet[id]
+		if !exists {
+			d.deployVersion <- id
+		}
+	}
+}
+
+func (d *Deployment) diffCurrentVersion(oldVersion, newVersion string) {
+	if oldVersion != newVersion {
+		if newVersion != "" {
+			d.rolloutVersion <- newVersion
+		}
+	}
+}
+
+func (d *Deployment) watchVersions() error {
+	versions := []string{}
 
 	lastWaitIndex := uint64(0)
-
-	for _, version := range versions {
-		d.versions[version] = newVersion(d, version)
-	}
-
 	done := false
 
 	go func() {
 		select {
-		case <-makeShutdownCh():
+		case <-util.MakeShutdownCh():
 			done = true
-			d.ui.Info(fmt.Sprintf("[%s] shutting down", d.Config.ID))
 		}
 	}()
 
@@ -198,60 +254,41 @@ func (d *Deployment) watchVersions() error {
 			return err
 		}
 
-		newVersionSet := map[string]struct{}{}
-		for _, version := range newVersions {
-			newVersionSet[version] = struct{}{}
+		d.diffVersions(versions, newVersions)
 
-			_, exists := d.versions[version]
-
-			if !exists {
-				d.ui.Output(fmt.Sprintf("[%s] found '%s'", d.Config.ID, version))
-				d.versions[version] = newVersion(d, version)
-			}
-
-			v := d.versions[version]
-			if !v.registered {
-				go func() {
-					err := v.register()
-					if err != nil {
-						d.ui.Error(fmt.Sprintf("[%s] failed '%s': %s", d.Config.ID, version, err))
-					}
-				}()
-			}
-
-			if !exists {
-				go func(version *Version) {
-					output, err := version.deploy()
-					if err != nil {
-						d.ui.Error(fmt.Sprintf("[%s] version '%s' deployment failed: %s", d.Config.ID, version.ID, err))
-					}
-					d.ui.Info(output)
-				}(v)
-			}
-		}
-
-		for id, version := range d.versions {
-			_, exists := newVersionSet[id]
-			if !exists {
-				d.ui.Output(fmt.Sprintf("[%s] removed '%s'", d.Config.ID, id))
-				go func(id string, version *Version) {
-					output, err := version.clean()
-					if err != nil {
-						d.ui.Error(fmt.Sprintf("[%s]@%s cleanup failed: %s", d.Config.ID, version.ID, err))
-					}
-					d.ui.Info(output)
-				}(id, version)
-			}
-		}
-
+		versions = newVersions
 		lastWaitIndex = nextWaitIndex
-
 	}
 
 	return nil
 }
 
 func (d *Deployment) watchCurrentVersion() error {
+	currentVersion := d.currentVersion()
+
+	lastWaitIndex := uint64(0)
+
+	done := false
+
+	go func() {
+		select {
+		case <-util.MakeShutdownCh():
+			done = true
+		}
+	}()
+
+	for !done {
+		newCurrentVersion, newWaitIndex, err := d.fetchCurrentVersion(lastWaitIndex)
+		if err != nil {
+			return err
+		}
+
+		lastWaitIndex = newWaitIndex
+
+		d.diffCurrentVersion(currentVersion, newCurrentVersion)
+		currentVersion = newCurrentVersion
+	}
+
 	return nil
 }
 
@@ -265,5 +302,121 @@ func (d *Deployment) Run() error {
 
 	d.session = session
 
-	return d.watchVersions()
+	go func() {
+		for id := range d.registerVersion {
+			version, exists := d.versions[id]
+
+			if !exists {
+				continue
+			}
+
+			go func(version *Version) {
+				err := version.register()
+				if err != nil {
+					d.ui.Error(fmt.Sprintf("[%s] version '%s' not registered: %s", d.Config.ID, version.ID, err))
+				}
+			}(version)
+		}
+	}()
+
+	go func() {
+		for id := range d.deployVersion {
+			version, exists := d.versions[id]
+
+			if !exists {
+				version = newVersion(d, id)
+				d.versions[id] = version
+				d.registerVersion <- id
+			}
+
+			output, err := version.deploy()
+			if err != nil {
+				d.ui.Error(fmt.Sprintf("[%s] version '%s' deployment failed: %s", d.Config.ID, version.ID, err))
+			} else {
+				d.ui.Output(fmt.Sprintf("[%s] version '%s' deployed", d.Config.ID, id))
+			}
+			d.ui.Info(output)
+		}
+	}()
+
+	go func() {
+		for id := range d.rolloutVersion {
+			version, exists := d.versions[id]
+			if !exists {
+				version = newVersion(d, id)
+				d.versions[id] = version
+
+				if !version.exists() {
+					version.close <- struct{}{}
+					d.ui.Error(fmt.Sprintf("[%s] version '%s' not found", d.Config.ID, id))
+					continue
+				} else {
+					d.registerVersion <- id
+					version.state <- "available"
+				}
+			}
+
+			output, err := version.rollout()
+			if err != nil {
+				d.ui.Error(fmt.Sprintf("[%s] version '%s' rollout failed: %s", d.Config.ID, version.ID, err))
+			}
+
+			d.ui.Info(output)
+
+			err = d.updateCurrentVersion(id)
+			if err != nil {
+				d.ui.Error(fmt.Sprintf("[%s] version '%s' rollout not persisted: %s", d.Config.ID, version.ID, err))
+			}
+		}
+	}()
+
+	go func() {
+		for id := range d.cleanVersion {
+			version, exists := d.versions[id]
+
+			if !exists {
+				continue
+			}
+
+			output, err := version.clean()
+			if err != nil {
+				d.ui.Error(fmt.Sprintf("[%s] version '%s' cleanup failed: %s", d.Config.ID, version.ID, err))
+			} else {
+				d.ui.Output(fmt.Sprintf("[%s] version '%s' removed", d.Config.ID, id))
+			}
+			d.ui.Info(output)
+		}
+	}()
+
+	doneCh := make(chan struct{}, 2)
+
+	go func() {
+		err := d.watchCurrentVersion()
+		if err != nil {
+			d.ui.Error(fmt.Sprintf("[%s] crashed: %s", d.Config.ID, err))
+		}
+		doneCh <- struct{}{}
+	}()
+
+	go func() {
+		err := d.watchVersions()
+		if err != nil {
+			d.ui.Error(fmt.Sprintf("[%s] crashed: %s", d.Config.ID, err))
+		}
+		doneCh <- struct{}{}
+	}()
+
+	go func() {
+		select {
+		case <-util.MakeShutdownCh():
+			close(d.deployVersion)
+			close(d.rolloutVersion)
+			close(d.cleanVersion)
+			close(d.registerVersion)
+		}
+	}()
+
+	<-doneCh
+	<-doneCh
+	return nil
 }

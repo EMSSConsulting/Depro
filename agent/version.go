@@ -87,7 +87,6 @@ func (v *Version) rollout() (string, error) {
 }
 
 func (v *Version) clean() (string, error) {
-	v.setState("cleaning")
 	executor := v.getExecutor()
 
 	task := &Task{

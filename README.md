@@ -48,6 +48,7 @@ depro agent -config-dir=/etc/depro/
 {
     "name": "workerNode1",
     "server": "localhost:8500",
+    "datacenter": "dc1",
     "deployments": [
         {
             "id": "api",

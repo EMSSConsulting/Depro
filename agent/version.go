@@ -166,8 +166,10 @@ func (v *Version) getExecutor() executor.Executor {
 	executor := executor.NewExecutor(strings.ToLower(v.deployment.Config.Shell))
 
 	executor.Environment["VERSION"] = v.ID
-	executor.Environment["NODE"] = v.deployment.agentConfig.Name
-	executor.Environment["DEPLOYMENT"] = v.deployment.Config.ID
+	executor.Environment["AGENT_NAME"] = v.deployment.agentConfig.Name
+	executor.Environment["DEPLOYMENT_ID"] = v.deployment.Config.ID
+	executor.Environment["DEPLOYMENT_PREFIX"] = v.deployment.Config.Prefix
+	executor.Environment["DEPLOYMENT_PATH"] = v.deployment.Config.Path
 	executor.Directory = v.fullPath()
 
 	return executor

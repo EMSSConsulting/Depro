@@ -56,7 +56,7 @@ depro agent -config-dir=/etc/depro/
             "prefix": "api/version",
             "shell": "bash",
             "deploy": [
-                "wget -O - http://artifacts.myapp.com/api/$VERSION.tar | tar zxf - || exit 1"
+                "wget -O - http://artifacts.myapp.com/api/$VERSION.tar.gz | tar zxf - || exit 1"
                 "rackadmin register $DEPLOYMENT_PATH $VERSION"
             ],
             "rollout": [
@@ -72,7 +72,7 @@ depro agent -config-dir=/etc/depro/
             "prefix": "website/version",
             "shell": "bash",
             "deploy": [
-                "wget -O - http://artifacts.myapp.com/website/$VERSION.tar | tar zxf - || exit 1"
+                "wget -O - http://artifacts.myapp.com/website/$VERSION.tar.gz | tar zxf - || exit 1"
                 "rackadmin register $DEPLOYMENT_PATH $VERSION"
             ],
             "rollout": [

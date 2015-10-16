@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/EMSSConsulting/Depro/executor"
 	"github.com/EMSSConsulting/Depro/util"
+	"github.com/EMSSConsulting/Executor"
 	"github.com/EMSSConsulting/waiter"
 	"github.com/hashicorp/consul/api"
 )

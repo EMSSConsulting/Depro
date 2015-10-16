@@ -7,7 +7,7 @@ import (
 	"github.com/mitchellh/cli"
 
 	"github.com/EMSSConsulting/Depro/common"
-	_ "github.com/EMSSConsulting/Depro/executor/shells" // Import the default shell providers
+	_ "github.com/EMSSConsulting/Executor/shells" // Import the default shell providers
 )
 
 func main() {

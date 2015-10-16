@@ -18,6 +18,7 @@ func NewOperation(ui cli.Ui, config *Config) Operation {
 	apiConfig := api.DefaultConfig()
 
 	apiConfig.Address = config.Server
+	apiConfig.Datacenter = config.Datacenter
 	apiConfig.WaitTime = config.WaitTime
 
 	client, _ := api.NewClient(apiConfig)

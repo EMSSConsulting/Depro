@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Name        string        `json:"name"`
 	Server      string        `json:"server"`
+	Datacenter  string        `json:"datacenter"`
 	WaitTime    time.Duration `json:"-"`
 	WaitTimeRaw string        `json:"wait"`
 	AllowStale  bool          `json:"allowStale"`
@@ -49,6 +50,10 @@ func Merge(a, b *Config) *Config {
 		result.Server = b.Server
 	}
 
+	if b.Datacenter != "" {
+		result.Datacenter = b.Datacenter
+	}
+
 	if b.WaitTime != 0 {
 		result.WaitTime = b.WaitTime
 		result.WaitTimeRaw = b.WaitTimeRaw
@@ -73,6 +78,7 @@ func DefaultConfig() *Config {
 	config := Config{
 		Name:        hostname,
 		Server:      "127.0.0.1:8500",
+		Datacenter:  "",
 		WaitTime:    5 * time.Minute,
 		WaitTimeRaw: "5m",
 		AllowStale:  true,

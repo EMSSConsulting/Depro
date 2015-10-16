@@ -14,6 +14,7 @@ import (
 // be set using a config file.
 type Config struct {
 	Server      string        `json:"server"`
+	Datacenter  string        `json:"datacenter"`
 	Prefix      string        `json:"prefix"`
 	Nodes       int           `json:"nodes"`
 	WaitTime    time.Duration `json:"-"`
@@ -34,6 +35,10 @@ func Merge(a, b *Config) *Config {
 
 	if b.Server != "" {
 		result.Server = b.Server
+	}
+
+	if b.Datacenter != "" {
+		result.Datacenter = b.Datacenter
 	}
 
 	if b.Prefix != "" {
@@ -61,6 +66,7 @@ func Merge(a, b *Config) *Config {
 func DefaultConfig() *Config {
 	config := Config{
 		Server:      "127.0.0.1:8500",
+		Datacenter:  "",
 		Prefix:      "deploy/versions",
 		Nodes:       1,
 		WaitTime:    10 * time.Minute,

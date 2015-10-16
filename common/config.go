@@ -13,6 +13,7 @@ type Config struct {
 	Server      string        `json:"server"`
 	Username    string        `json:"username"`
 	Password    string        `json:"password"`
+	Token       string        `json:"token"`
 	Datacenter  string        `json:"datacenter"`
 	Prefix      string        `json:"prefix"`
 	WaitTime    time.Duration `json:"-"`
@@ -28,6 +29,7 @@ func DefaultConfig() Config {
 		Username:    "",
 		Password:    "",
 		Datacenter:  "",
+		Token:       "",
 		Prefix:      "deploy/versions",
 		WaitTime:    10 * time.Minute,
 		WaitTimeRaw: "10m",
@@ -63,6 +65,10 @@ func Merge(a, b *Config) {
 		a.Password = b.Password
 	}
 
+	if b.Token != "" {
+		a.Token = b.Token
+	}
+
 	if b.AllowStale {
 		a.AllowStale = b.AllowStale
 	}
@@ -89,6 +95,7 @@ func (c *Config) GetAPIClient() *api.Client {
 	apiConfig.Address = c.Server
 	apiConfig.Datacenter = c.Datacenter
 	apiConfig.WaitTime = c.WaitTime
+	apiConfig.Token = c.Token
 
 	if c.Username != "" {
 		apiConfig.HttpAuth = &api.HttpBasicAuth{

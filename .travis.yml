@@ -19,5 +19,7 @@ deploy:
     api_key:
         secure: Z61MLQoVVthq/UXcRl9WYm6qAw/40UZK0hEoTaUkSzrfpA3CLPaEfMjgUPkrQGIygZ3NaILZjwN0mfFSskJlRr1fCp5/HYlqmi+fQ/T6W2TuuwycgsW80LN9IjGTfBc1IwY/nG2k5qPc156cfckrrR2lsQG88NPt3SBay4DbMu5m4De0WmUZBzjfVkCJMYR59Im/M/9zOt0N9Sq2eDbn6jd9A+bgH59XlSEOCuXmzFW05BuINt8Qnlzdw/F4bSrOY5VT/f8Un+xjK41IguypY6YqArNO9FdAct1NS9jHqdSP2fK3N2b2qOXDKfQViA2ZCKhoCsZ4cFDjwwnChSpDEO1RxVbA3OB9sI8qh7s5HuEQ9xC3w9E1rZK8f5lw6kBc8CH3jeVg6peYnGKlZ/VANLc2OXMhDUNzhnRg3ENhbMzVDZxOcAOYYB/izSgFoxSBpOwmC+J9tspK+EtDoROeDRpoKe8SHXIgZXfjDlVmfi2qk1MBIu289ZHP4GFRB6W2Pt8djrKpMFUZcfxvZM1NVfWEiiILhmi6hcvsROlcBN3dDAKgCihpNjQpEZYT19YfQjmQDMfKks/EFDOsvtZtLLfx27hc/OaqzdibPZidB4pZ7EuhnODjNKPcHRmh2KouVX9sLiEWeNz4sZs/rtMj6hxG5V/ViFgFD4KtC90Jg74=
     file: bin/depro
+    skip_cleanup: true
     on:
+        tags: true
         repo: EMSSConsulting/Depro

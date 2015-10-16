@@ -17,6 +17,8 @@ import (
 type Config struct {
 	Name        string        `json:"name"`
 	Server      string        `json:"server"`
+	Username    string        `json:"username"`
+	Password    string        `json:"password"`
 	Datacenter  string        `json:"datacenter"`
 	WaitTime    time.Duration `json:"-"`
 	WaitTimeRaw string        `json:"wait"`

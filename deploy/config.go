@@ -14,6 +14,8 @@ import (
 // be set using a config file.
 type Config struct {
 	Server      string        `json:"server"`
+	Username    string        `json:"username"`
+	Password    string        `json:"password"`
 	Datacenter  string        `json:"datacenter"`
 	Prefix      string        `json:"prefix"`
 	Nodes       int           `json:"nodes"`

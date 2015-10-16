@@ -36,6 +36,7 @@ func (c *Command) Help() string {
         -prefix=deploy/myapp
         -nodes=3
         -config=/etc/depro/myapp.json
+		-auth=username:password
     `
 
 	return strings.TrimSpace(helpText)
@@ -80,12 +81,21 @@ func (c *Command) setupConfig() (string, error) {
 		c.config = Merge(c.config, cFile)
 	}
 
-	cmdFlags.StringVar(&c.config.Server, "server", "", "")
-	cmdFlags.StringVar(&c.config.Prefix, "prefix", "", "")
-	cmdFlags.IntVar(&c.config.Nodes, "nodes", 1, "")
+	cmdFlags.StringVar(&c.config.Server, "server", "", "Consul HTTP server address")
+	cmdFlags.StringVar(&c.config.Prefix, "prefix", "", "Consul key prefix")
+	cmdFlags.IntVar(&c.config.Nodes, "nodes", 1, "minimum number of nodes to deploy to")
+
+	var auth string
+	cmdFlags.StringVar(&auth, "auth", "", "username:password")
 
 	if err := cmdFlags.Parse(c.args); err != nil {
 		return "", err
+	}
+
+	if auth != "" {
+		authComponents := strings.SplitN(auth, ":", 2)
+		c.config.Username = authComponents[0]
+		c.config.Password = authComponents[1]
 	}
 
 	return cmdFlags.Arg(0), nil

@@ -26,6 +26,13 @@ func NewOperation(ui cli.Ui, config *Config, version string) Operation {
 	apiConfig.Datacenter = config.Datacenter
 	apiConfig.WaitTime = config.WaitTime
 
+	if config.Username != "" {
+		apiConfig.HttpAuth = &api.HttpBasicAuth{
+			Username: config.Username,
+			Password: config.Password,
+		}
+	}
+
 	client, _ := api.NewClient(apiConfig)
 
 	return Operation{

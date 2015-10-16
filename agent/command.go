@@ -36,6 +36,7 @@ func (c *Command) Help() string {
         -server=127.0.0.1:8500 HTTP address of a Consul agent in the cluster
         -config-dir=/etc/depro/
         -config-file=/etc/depro/myapp.json
+		-auth=username:password
     `
 
 	return strings.TrimSpace(helpText)
@@ -84,7 +85,10 @@ func (c *Command) setupConfig() error {
 	cmdFlags.Var((*util.AppendSliceValue)(&configFiles), "config-dir", "directory of json files to read")
 	cmdFlags.Var((*util.AppendSliceValue)(&configFiles), "config-file", "json file to read config from")
 
-	cmdFlags.StringVar(&c.config.Server, "server", "", "")
+	cmdFlags.StringVar(&c.config.Server, "server", "", "Consul HTTP server address")
+
+	var auth string
+	cmdFlags.StringVar(&auth, "auth", "", "username:password")
 
 	if err := cmdFlags.Parse(c.args); err != nil {
 		return err
@@ -97,6 +101,12 @@ func (c *Command) setupConfig() error {
 		}
 
 		c.config = Merge(c.config, cFile)
+	}
+
+	if auth != "" {
+		authComponents := strings.SplitN(auth, ":", 2)
+		c.config.Username = authComponents[0]
+		c.config.Password = authComponents[1]
 	}
 
 	return nil

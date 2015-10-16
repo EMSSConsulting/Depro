@@ -1,0 +1,10 @@
+[Unit]
+Description=Depro Deployment Management Agent
+Requires=network.service consul.service
+
+[Service]
+ExecStart=/usr/local/bin/depro agent -config-dir=/etc/depro/
+ExecStop=/bin/kill -s QUIT $MAINPID
+
+[Install]
+WantedBy=multi-user.target

@@ -100,7 +100,7 @@ func (c *Command) setupConfig() error {
 			return err
 		}
 
-		c.config = Merge(c.config, cFile)
+		Merge(c.config, cFile)
 	}
 
 	if auth != "" {

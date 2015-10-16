@@ -8,22 +8,17 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
+
+	"github.com/EMSSConsulting/Depro/common"
 )
 
 // Config is the configuration for a deployment agent.
 // Some of it can be configured using CLI flags, but most must
 // be set using a config file.
 type Config struct {
-	Name        string        `json:"name"`
-	Server      string        `json:"server"`
-	Username    string        `json:"username"`
-	Password    string        `json:"password"`
-	Datacenter  string        `json:"datacenter"`
-	WaitTime    time.Duration `json:"-"`
-	WaitTimeRaw string        `json:"wait"`
-	AllowStale  bool          `json:"allowStale"`
+	common.Config
 
+	Name        string             `json:"name"`
 	Deployments []DeploymentConfig `json:"deployments"`
 }
 
@@ -41,35 +36,10 @@ type DeploymentConfig struct {
 
 // Merge the second command entry into the first and return a reference
 // to the first.
-func Merge(a, b *Config) *Config {
-	var result = *a
+func Merge(a, b *Config) {
+	common.Merge(&a.Config, &b.Config)
 
-	if b.Name != "" {
-		result.Name = b.Name
-	}
-
-	if b.Server != "" {
-		result.Server = b.Server
-	}
-
-	if b.Datacenter != "" {
-		result.Datacenter = b.Datacenter
-	}
-
-	if b.WaitTime != 0 {
-		result.WaitTime = b.WaitTime
-		result.WaitTimeRaw = b.WaitTimeRaw
-	}
-
-	if b.AllowStale {
-		result.AllowStale = b.AllowStale
-	}
-
-	result.Deployments = make([]DeploymentConfig, 0, len(a.Deployments)+len(b.Deployments))
-	result.Deployments = append(result.Deployments, a.Deployments...)
-	result.Deployments = append(result.Deployments, b.Deployments...)
-
-	return &result
+	a.Deployments = append(a.Deployments, b.Deployments...)
 }
 
 // DefaultConfig returns a pointer to a populated Config object with sensible
@@ -78,12 +48,8 @@ func DefaultConfig() *Config {
 	hostname, _ := os.Hostname()
 
 	config := Config{
+		Config:      common.DefaultConfig(),
 		Name:        hostname,
-		Server:      "127.0.0.1:8500",
-		Datacenter:  "",
-		WaitTime:    5 * time.Minute,
-		WaitTimeRaw: "5m",
-		AllowStale:  true,
 		Deployments: []DeploymentConfig{},
 	}
 
@@ -114,7 +80,7 @@ func ReadConfig(paths []string) (*Config, error) {
 				return nil, fmt.Errorf("Error decoding '%s': %s", path, err)
 			}
 
-			result = Merge(result, config)
+			Merge(result, config)
 			continue
 		}
 
@@ -150,7 +116,7 @@ func ReadConfig(paths []string) (*Config, error) {
 				return nil, fmt.Errorf("Error decoding '%s': %s", subpath, err)
 			}
 
-			result = Merge(result, config)
+			Merge(result, config)
 		}
 	}
 
@@ -166,13 +132,9 @@ func DecodeConfig(r io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	if result.WaitTimeRaw != "" {
-		waitTime, err := time.ParseDuration(result.WaitTimeRaw)
-		if err != nil {
-			return nil, err
-		}
-
-		result.WaitTime = waitTime
+	err := result.Finalize()
+	if err != nil {
+		return nil, err
 	}
 
 	return &result, nil

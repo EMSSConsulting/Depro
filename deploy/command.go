@@ -78,7 +78,7 @@ func (c *Command) setupConfig() (string, error) {
 			return "", err
 		}
 
-		c.config = Merge(c.config, cFile)
+		Merge(c.config, cFile)
 	}
 
 	cmdFlags.StringVar(&c.config.Server, "server", "", "Consul HTTP server address")

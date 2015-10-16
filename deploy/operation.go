@@ -14,38 +14,21 @@ type Operation struct {
 	Version string
 	UI      cli.Ui
 	Config  *Config
-	Client  *api.Client
 
 	wait *waiter.Wait
 }
 
 func NewOperation(ui cli.Ui, config *Config, version string) Operation {
-	apiConfig := api.DefaultConfig()
-
-	apiConfig.Address = config.Server
-	apiConfig.Datacenter = config.Datacenter
-	apiConfig.WaitTime = config.WaitTime
-
-	if config.Username != "" {
-		apiConfig.HttpAuth = &api.HttpBasicAuth{
-			Username: config.Username,
-			Password: config.Password,
-		}
-	}
-
-	client, _ := api.NewClient(apiConfig)
-
 	return Operation{
 		Version: version,
-		Client:  client,
 		Config:  config,
 		UI:      ui,
 	}
 }
 
-func (o *Operation) runDeployment() error {
+func (o *Operation) runDeployment(client *api.Client) error {
 	o.wait = waiter.NewWaiter(
-		o.Client,
+		client,
 		o.Config.VersionPath(o.Version),
 		o.Config.Nodes,
 		func(w *waiter.WaitNode) bool {
@@ -117,8 +100,8 @@ func (o *Operation) runDeployment() error {
 	}
 }
 
-func (o *Operation) runRollout() error {
-	kv := o.Client.KV()
+func (o *Operation) runRollout(client *api.Client) error {
+	kv := client.KV()
 
 	_, err := kv.Put(&api.KVPair{
 		Key:   fmt.Sprintf("%s/current", strings.Trim(o.Config.Prefix, "/")),
@@ -136,12 +119,14 @@ func (o *Operation) runRollout() error {
 
 // Run executes the process for a deployment operation
 func (o *Operation) Run() error {
-	err := o.runDeployment()
+	client := o.Config.GetAPIClient()
+
+	err := o.runDeployment(client)
 	if err != nil {
 		return err
 	}
 
-	err = o.runRollout()
+	err = o.runRollout(client)
 	if err != nil {
 		return err
 	}

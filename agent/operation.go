@@ -3,7 +3,6 @@ package agent
 import (
 	"fmt"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/mitchellh/cli"
 )
 
@@ -11,27 +10,10 @@ import (
 type Operation struct {
 	UI     cli.Ui
 	Config *Config
-	Client *api.Client
 }
 
 func NewOperation(ui cli.Ui, config *Config) Operation {
-	apiConfig := api.DefaultConfig()
-
-	apiConfig.Address = config.Server
-	apiConfig.Datacenter = config.Datacenter
-	apiConfig.WaitTime = config.WaitTime
-
-	if config.Username != "" {
-		apiConfig.HttpAuth = &api.HttpBasicAuth{
-			Username: config.Username,
-			Password: config.Password,
-		}
-	}
-
-	client, _ := api.NewClient(apiConfig)
-
 	return Operation{
-		Client: client,
 		Config: config,
 		UI:     ui,
 	}

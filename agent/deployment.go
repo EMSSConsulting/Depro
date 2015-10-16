@@ -37,7 +37,7 @@ func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
 		Config: config,
 
 		agentConfig: operation.Config,
-		client:      operation.Client,
+		client:      operation.Config.GetAPIClient(),
 		ui:          operation.UI,
 		versions:    map[string]*Version{},
 

@@ -1,6 +1,10 @@
 package common
 
-import "time"
+import (
+	"time"
+
+	"github.com/hashicorp/consul/api"
+)
 
 // Config is the configuration for a deployment agent.
 // Some of it can be configured using CLI flags, but most must
@@ -77,4 +81,22 @@ func (c *Config) Finalize() error {
 	}
 
 	return nil
+}
+
+func (c *Config) GetAPIClient() *api.Client {
+	apiConfig := api.DefaultConfig()
+
+	apiConfig.Address = c.Server
+	apiConfig.Datacenter = c.Datacenter
+	apiConfig.WaitTime = c.WaitTime
+
+	if c.Username != "" {
+		apiConfig.HttpAuth = &api.HttpBasicAuth{
+			Username: c.Username,
+			Password: c.Password,
+		}
+	}
+
+	client, _ := api.NewClient(apiConfig)
+	return client
 }

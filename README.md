@@ -15,7 +15,76 @@ project in which multiple deployments were conducted each day across a cluster
 large enough to make manual intervention expensive and sequential deployments
 laboriously time consuming.
 
-## Addressing Features
+## Usage
+
+### Deployment Tool
+The deployment tool is designed to make deploying a version of your application
+a simple process. Once you have made your build artifacts available, simply run
+the deployment tool to have your cluster deploy and rollout the new version.
+
+```sh
+depro deploy 585ecfabf5b41bae1db7bd566ce984d77568987d -prefix=api/version -nodes=3
+```
+
+When running the deploy tool, you should ensure that you provide a value for the
+prefix and nodes parameters - as these will dictate which cluster receives the
+version as well as the minimum number of nodes required to acknowledge the deployment
+before it will take place.
+
+### Deployment Agent
+Depro is run as an agent on each of your deployment targets, on which it will
+manage the defined deployment path based on the contents of your Consul
+key value store.
+
+The agent watches for changes to Consul's entries and will update the local
+system to match the state presented in Consul. This state can either be managed
+manually, through custom scripts or using the deployment tool built into Depro.
+
+```sh
+depro agent -config-dir=/etc/depro/
+```
+
+```json
+{
+    "name": "workerNode1",
+    "server": "localhost:8500",
+    "deployments": [
+        {
+            "id": "api",
+            "path": "/data/deploy/api/",
+            "prefix": "api/version",
+            "shell": "bash",
+            "deploy": [
+                "wget -O - http://artifacts.myapp.com/api/$VERSION.tar | tar zxf - || exit 1"
+                "rackadmin register $DEPLOYMENT_PATH $VERSION"
+            ],
+            "rollout": [
+                "rackadmin checkout $DEPLOYMENT_PATH $VERSION"
+            ],
+            "clean": [
+                "rackadmin clean $DEPLOYMENT_PATH $VERSION"
+            ]
+        },
+        {
+            "id": "website",
+            "path": "/data/deploy/website/",
+            "prefix": "website/version",
+            "shell": "bash",
+            "deploy": [
+                "wget -O - http://artifacts.myapp.com/website/$VERSION.tar | tar zxf - || exit 1"
+                "rackadmin register $DEPLOYMENT_PATH $VERSION"
+            ],
+            "rollout": [
+                "rm $DEPLOYMENT_PATH/live",
+                "ln -s $DEPLOYMENT_PATH/$VERSION $DEPLOYMENT_PATH/live",
+                "systemctl reload nginx"
+            ]
+        }
+    ]
+}
+```
+
+## Design
 Depro addresses the features/guarantees listed above by approaching the problem
 in three phases. This is all centrally administered through the Consul distributed
 key-value store.

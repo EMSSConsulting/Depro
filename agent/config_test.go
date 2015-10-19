@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 	"time"
+	"github.com/EMSSConsulting/Depro/common"
 )
 
 func TestDecodeConfig_Server(t *testing.T) {
@@ -66,20 +67,24 @@ func TestDecodeConfig_AllowStale(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	c1 := Config{
-		Server: "127.0.0.1:8000",
+		Config: common.Config{
+			Server: "127.0.0.1:8000",
+		},
 	}
 
 	c2 := Config{
-		WaitTime: 12 * time.Second,
+		Config: common.Config{
+			WaitTime: 12 * time.Second,
+		},
 	}
 
-	c3 := Merge(&c1, &c2)
+	Merge(&c1, &c2)
 
-	if c3.Server != "127.0.0.1:8000" {
-		t.Fatal("bad server field")
+	if c1.Server != "127.0.0.1:8000" {
+		t.Fatalf("bad server field")
 	}
 
-	if c3.WaitTime != 12*time.Second {
+	if c1.WaitTime != 12*time.Second {
 		t.Fatal("bad waitTime field")
 	}
 }

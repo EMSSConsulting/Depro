@@ -6,16 +6,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/EMSSConsulting/Depro/common"
 	"github.com/hashicorp/consul/api"
 	"github.com/mitchellh/cli"
 )
 
 func TestProcess(t *testing.T) {
 	config := &Config{
-		Server:   "127.0.0.1:8500",
-		Prefix:   "versions",
-		WaitTime: 10 * time.Second,
-		Nodes:    1,
+		Config: common.Config{
+			Server:   "127.0.0.1:8500",
+			Prefix:   "versions",
+			WaitTime: 10 * time.Second,
+		},
+		Nodes: 1,
 	}
 
 	apiConfig := api.DefaultConfig()
@@ -32,7 +35,6 @@ func TestProcess(t *testing.T) {
 	op := Operation{
 		Version: "test",
 		Config:  config,
-		Client:  client,
 		UI:      ui,
 	}
 

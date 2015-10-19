@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"testing"
 	"time"
+
+	"github.com/EMSSConsulting/Depro/common"
 )
 
 func TestDecodeConfig_Server(t *testing.T) {
@@ -73,27 +75,33 @@ func TestDecodeConfig_AllowStale(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	c1 := Config{
-		Server: "127.0.0.1:8000",
+		Config: common.Config{
+			Server: "127.0.0.1:8000",
+		},
 	}
 
 	c2 := Config{
-		Prefix: "test",
+		Config: common.Config{
+			Prefix: "test",
+		},
 	}
 
-	c3 := Merge(&c1, &c2)
+	Merge(&c1, &c2)
 
-	if c3.Server != "127.0.0.1:8000" {
+	if c1.Server != "127.0.0.1:8000" {
 		t.Fatal("bad server field")
 	}
 
-	if c3.Prefix != "test" {
+	if c1.Prefix != "test" {
 		t.Fatal("bad server field")
 	}
 }
 
 func TestVersionPath(t *testing.T) {
 	conf := Config{
-		Prefix: "myapp/test/version/",
+		Config: common.Config{
+			Prefix: "myapp/test/version/",
+		},
 	}
 
 	if conf.VersionPath("1234") != "myapp/test/version/1234" {

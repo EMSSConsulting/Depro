@@ -291,13 +291,15 @@ func (d *Deployment) Run() error {
 				d.registerVersion <- id
 			}
 
-			output, err := version.deploy()
-			if err != nil {
-				d.ui.Error(fmt.Sprintf("[%s] version '%s' deployment failed: %s", d.Config.ID, version.ID, err))
-			} else {
-				d.ui.Output(fmt.Sprintf("[%s] version '%s' deployed", d.Config.ID, id))
+			if !version.exists() {
+				output, err := version.deploy()
+				if err != nil {
+					d.ui.Error(fmt.Sprintf("[%s] version '%s' deployment failed: %s", d.Config.ID, version.ID, err))
+				} else {
+					d.ui.Output(fmt.Sprintf("[%s] version '%s' deployed", d.Config.ID, id))
+				}
+				d.ui.Info(output)
 			}
-			d.ui.Info(output)
 
 			// Rollout this version since it has only been deployed now
 			if id == d.currentVersion() {

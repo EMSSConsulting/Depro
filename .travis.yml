@@ -13,6 +13,7 @@ script:
     - sleep 10
     - "./build/linux.sh"
     - "./bin/depro version"
+    - go test ./...
 
 deploy:
     provider: releases

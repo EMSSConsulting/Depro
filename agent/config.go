@@ -41,6 +41,10 @@ type DeploymentConfig struct {
 func Merge(a, b *Config) {
 	common.Merge(&a.Config, &b.Config)
 
+	if b.Name != "" {
+		a.Name = b.Name
+	}
+
 	a.Deployments = append(a.Deployments, b.Deployments...)
 }
 
@@ -126,6 +130,8 @@ func ReadConfig(paths []string) (*Config, error) {
 }
 
 func ParseFlags(config *Config, args []string, flags *flag.FlagSet) error {
+	flags.StringVar(&config.Name, "name", "", "name of agent when identifying in key store")
+
 	var configFiles []string
 	flags.Var((*util.AppendSliceValue)(&configFiles), "config-dir", "directory of json files to read")
 	flags.Var((*util.AppendSliceValue)(&configFiles), "config-file", "json file to read config from")

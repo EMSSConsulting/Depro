@@ -193,14 +193,14 @@ func (d *Deployment) diffVersions(oldVersions, newVersions []string) {
 
 	for _, id := range oldVersions {
 		_, exists := newVersionsSet[id]
-		if !exists {
+		if !exists && d.cleanVersion != nil {
 			d.cleanVersion <- id
 		}
 	}
 
 	for _, id := range newVersions {
 		_, exists := oldVersionsSet[id]
-		if !exists {
+		if !exists && d.deployVersion != nil {
 			d.deployVersion <- id
 		}
 	}
@@ -208,7 +208,7 @@ func (d *Deployment) diffVersions(oldVersions, newVersions []string) {
 
 func (d *Deployment) diffCurrentVersion(oldVersion, newVersion string) {
 	if oldVersion != newVersion {
-		if newVersion != "" {
+		if newVersion != "" && d.rolloutVersion != nil {
 			d.rolloutVersion <- newVersion
 		}
 	}

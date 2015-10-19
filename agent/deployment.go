@@ -298,6 +298,11 @@ func (d *Deployment) Run() error {
 				d.ui.Output(fmt.Sprintf("[%s] version '%s' deployed", d.Config.ID, id))
 			}
 			d.ui.Info(output)
+
+			// Rollout this version since it has only been deployed now
+			if id == d.currentVersion() {
+				d.rolloutVersion <- id
+			}
 		}
 	}()
 

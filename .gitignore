@@ -70,3 +70,4 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 test/config.json
+test/current

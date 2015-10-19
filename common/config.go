@@ -1,6 +1,8 @@
 package common
 
 import (
+	"flag"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -72,6 +74,27 @@ func Merge(a, b *Config) {
 	if b.AllowStale {
 		a.AllowStale = b.AllowStale
 	}
+}
+
+func ParseFlags(config *Config, args []string, flags *flag.FlagSet) error {
+	flags.StringVar(&config.Server, "server", "", "Consul HTTP server address")
+	flags.StringVar(&config.Prefix, "prefix", "", "Consul key prefix")
+
+	var auth string
+	flags.StringVar(&auth, "auth", "", "username:password")
+	flags.StringVar(&config.Token, "token", "", "Cosul API token")
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	if auth != "" {
+		authComponents := strings.SplitN(auth, ":", 2)
+		config.Username = authComponents[0]
+		config.Password = authComponents[1]
+	}
+
+	return nil
 }
 
 // Finalize is responsible for performing any final conversions, such as

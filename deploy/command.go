@@ -69,33 +69,9 @@ func (c *Command) setupConfig() (string, error) {
 	cmdFlags := flag.NewFlagSet("deploy", flag.ContinueOnError)
 	cmdFlags.Usage = func() { c.UI.Output(c.Help()) }
 
-	var configFile string
-	cmdFlags.StringVar(&configFile, "config", "", "")
-
-	if configFile != "" {
-		cFile, err := ReadConfig(configFile)
-		if err != nil {
-			return "", err
-		}
-
-		Merge(c.config, cFile)
-	}
-
-	cmdFlags.StringVar(&c.config.Server, "server", "", "Consul HTTP server address")
-	cmdFlags.StringVar(&c.config.Prefix, "prefix", "", "Consul key prefix")
-	cmdFlags.IntVar(&c.config.Nodes, "nodes", 1, "minimum number of nodes to deploy to")
-
-	var auth string
-	cmdFlags.StringVar(&auth, "auth", "", "username:password")
-
-	if err := cmdFlags.Parse(c.args); err != nil {
+	err := ParseFlags(c.config, c.args, cmdFlags)
+	if err != nil {
 		return "", err
-	}
-
-	if auth != "" {
-		authComponents := strings.SplitN(auth, ":", 2)
-		c.config.Username = authComponents[0]
-		c.config.Password = authComponents[1]
 	}
 
 	return cmdFlags.Arg(0), nil

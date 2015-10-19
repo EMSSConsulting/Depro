@@ -81,32 +81,8 @@ func (c *Command) setupConfig() error {
 	cmdFlags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	cmdFlags.Usage = func() { c.UI.Output(c.Help()) }
 
-	var configFiles []string
-	cmdFlags.Var((*util.AppendSliceValue)(&configFiles), "config-dir", "directory of json files to read")
-	cmdFlags.Var((*util.AppendSliceValue)(&configFiles), "config-file", "json file to read config from")
-
-	cmdFlags.StringVar(&c.config.Server, "server", "", "Consul HTTP server address")
-
-	var auth string
-	cmdFlags.StringVar(&auth, "auth", "", "username:password")
-
-	if err := cmdFlags.Parse(c.args); err != nil {
+	if err := ParseFlags(c.config, c.args, cmdFlags); err != nil {
 		return err
-	}
-
-	if len(configFiles) > 0 {
-		cFile, err := ReadConfig(configFiles)
-		if err != nil {
-			return err
-		}
-
-		Merge(c.config, cFile)
-	}
-
-	if auth != "" {
-		authComponents := strings.SplitN(auth, ":", 2)
-		c.config.Username = authComponents[0]
-		c.config.Password = authComponents[1]
 	}
 
 	return nil

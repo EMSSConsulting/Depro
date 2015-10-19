@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/EMSSConsulting/Depro/common"
+	"github.com/EMSSConsulting/Depro/util"
 )
 
 // Config is the configuration for a deployment agent.
@@ -121,6 +123,28 @@ func ReadConfig(paths []string) (*Config, error) {
 	}
 
 	return result, nil
+}
+
+func ParseFlags(config *Config, args []string, flags *flag.FlagSet) error {
+	var configFiles []string
+	flags.Var((*util.AppendSliceValue)(&configFiles), "config-dir", "directory of json files to read")
+	flags.Var((*util.AppendSliceValue)(&configFiles), "config-file", "json file to read config from")
+
+	err := common.ParseFlags(&config.Config, args, flags)
+	if err != nil {
+		return err
+	}
+
+	if len(configFiles) > 0 {
+		cFile, err := ReadConfig(configFiles)
+		if err != nil {
+			return err
+		}
+
+		Merge(config, cFile)
+	}
+
+	return nil
 }
 
 // DecodeConfig decodes a configuration file from an io.Reader stream and returns it.

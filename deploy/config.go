@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -44,6 +45,30 @@ func Merge(a, b *Config) {
 	if b.Nodes != 0 {
 		a.Nodes = b.Nodes
 	}
+}
+
+func ParseFlags(config *Config, args []string, flags *flag.FlagSet) error {
+
+	var configFile string
+	flags.StringVar(&configFile, "config", "", "")
+
+	flags.IntVar(&config.Nodes, "nodes", 1, "minimum number of nodes to deploy to")
+
+	err := common.ParseFlags(&config.Config, args, flags)
+	if err != nil {
+		return err
+	}
+
+	if configFile != "" {
+		cFile, err := ReadConfig(configFile)
+		if err != nil {
+			return err
+		}
+
+		Merge(config, cFile)
+	}
+
+	return nil
 }
 
 // ReadConfig reads a configuration file from the given path and returns it.

@@ -17,7 +17,12 @@ script:
 deploy:
     provider: releases
     api_key:
-        secure: Z61MLQoVVthq/UXcRl9WYm6qAw/40UZK0hEoTaUkSzrfpA3CLPaEfMjgUPkrQGIygZ3NaILZjwN0mfFSskJlRr1fCp5/HYlqmi+fQ/T6W2TuuwycgsW80LN9IjGTfBc1IwY/nG2k5qPc156cfckrrR2lsQG88NPt3SBay4DbMu5m4De0WmUZBzjfVkCJMYR59Im/M/9zOt0N9Sq2eDbn6jd9A+bgH59XlSEOCuXmzFW05BuINt8Qnlzdw/F4bSrOY5VT/f8Un+xjK41IguypY6YqArNO9FdAct1NS9jHqdSP2fK3N2b2qOXDKfQViA2ZCKhoCsZ4cFDjwwnChSpDEO1RxVbA3OB9sI8qh7s5HuEQ9xC3w9E1rZK8f5lw6kBc8CH3jeVg6peYnGKlZ/VANLc2OXMhDUNzhnRg3ENhbMzVDZxOcAOYYB/izSgFoxSBpOwmC+J9tspK+EtDoROeDRpoKe8SHXIgZXfjDlVmfi2qk1MBIu289ZHP4GFRB6W2Pt8djrKpMFUZcfxvZM1NVfWEiiILhmi6hcvsROlcBN3dDAKgCihpNjQpEZYT19YfQjmQDMfKks/EFDOsvtZtLLfx27hc/OaqzdibPZidB4pZ7EuhnODjNKPcHRmh2KouVX9sLiEWeNz4sZs/rtMj6hxG5V/ViFgFD4KtC90Jg74=
+        secure: "pAJ2hNjx4+KtWn6oPNNAESa5BpwN35E2l19kB2FK6vDPd/Fs20OShWuJLcrQ7stAMNim7fIxdEaHBeA5IXOSgC2bVyMt8RwNnjYS+vbDOQw2/
+                syT/TV4cNzjt4P7wHNXBl0TzkfJpqgnhWSnKo7MqwhrJs9uCgp6BBzF1f/lPRbrpYfnFS016mnxIZ6r70pPI5isBxdKkxZYYISAof159QQCJVnczRX2S0QOx
+                u6CP8GuwBYqEiA2YIVlbFIDcUx+WozuHFQ6JVNiCAiht0+55rnBgMNqjQ7wCNYThjAzoTwrBs03o5+2ib2BOfgE5G6+lBhKv5aw69EWKo43gpnryffPre2MP
+                7JGK9eObTseBCfDxfvBBw0rdDRb40PHXjZ73WsVHa2L8gHr/9i8zzX1anXS9aoM2+UTkRWo/vSOUiKJ6qDeVAC9jV3uw0LbvyxMRI5Z8+8upkfbX7e1mk83E
+                bVjE6fENY9BGPhgvhIW1kharxkGWa9+vJ8ImcrqCkUXUKGI78iORMJT1u2DA7oYEGE1KLCM3DmOIZxbbQ+u1pjaQiJBjA5tPSi2crlFIU4j0pyIs6kqq6Vx7
+                W7S1Vp0Kt1QcPVENSrg02Ao8KrC0rHKz87D3BbqDKur6wLYkWY3hP5NXbTnoXaApD3eFZZ2AFqqBgTRGbEHDtvQPd8Zye4="
     file: bin/depro
     skip_cleanup: true
     on:

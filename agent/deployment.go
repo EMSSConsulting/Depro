@@ -332,9 +332,19 @@ func (d *Deployment) Run() error {
 
 			d.ui.Info(output)
 
-			err = d.updateCurrentVersion(id)
-			if err != nil {
-				d.ui.Error(fmt.Sprintf("[%s] version '%s' rollout not persisted: %s", d.Config.ID, version.ID, err))
+			if err == nil {
+				for id2, version2 := range d.versions {
+					if id == id2 {
+						continue
+					} else if version2.exists() {
+						version2.setState("available")
+					}
+				}
+
+				err = d.updateCurrentVersion(id)
+				if err != nil {
+					d.ui.Error(fmt.Sprintf("[%s] version '%s' rollout not persisted: %s", d.Config.ID, version.ID, err))
+				}
 			}
 		}
 	}()

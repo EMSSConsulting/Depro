@@ -186,7 +186,7 @@ func (v *Version) fullPath() string {
 func (v *Version) recreateDirectory() error {
 	v.removeDirectory()
 
-	return os.MkdirAll(v.fullPath(), os.ModeDir)
+	return os.MkdirAll(v.fullPath(), os.ModeDir|os.ModePerm)
 }
 
 func (v *Version) removeDirectory() error {

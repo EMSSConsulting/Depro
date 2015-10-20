@@ -1,4 +1,4 @@
-# Depro Deployment Manager
+# Depro Deployment Manager [![Build Status](https://travis-ci.org/EMSSConsulting/Depro.svg)](https://travis-ci.org/EMSSConsulting/Depro)
 **Simplified cluster application deployment using Consul**
 
 Depro aims to provide the following features to assist in the deployment of versioned

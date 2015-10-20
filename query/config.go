@@ -31,7 +31,13 @@ func DefaultConfig() *Config {
 		Config: common.DefaultConfig(),
 	}
 
+	LoadEnvironment(&config)
+
 	return &config
+}
+
+func LoadEnvironment(config *Config) {
+
 }
 
 // Merge the second command entry into the first and return a reference

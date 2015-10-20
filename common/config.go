@@ -2,6 +2,7 @@ package common
 
 import (
 	"flag"
+	"os"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ type Config struct {
 // DefaultConfig returns a pointer to a populated Config object with sensible
 // default values.
 func DefaultConfig() Config {
-	return Config{
+	config := Config{
 		Server:      "127.0.0.1:8500",
 		Username:    "",
 		Password:    "",
@@ -37,6 +38,10 @@ func DefaultConfig() Config {
 		WaitTimeRaw: "10m",
 		AllowStale:  true,
 	}
+
+	LoadEnvironment(&config)
+
+	return config
 }
 
 // Merge the second command entry into the first and return a reference
@@ -95,6 +100,35 @@ func ParseFlags(config *Config, args []string, flags *flag.FlagSet) error {
 	}
 
 	return nil
+}
+
+func LoadEnvironment(config *Config) {
+	auth := os.Getenv("DEPRO_AUTH")
+	if auth != "" {
+		authComponents := strings.SplitN(auth, ":", 2)
+		config.Username = authComponents[0]
+		config.Password = authComponents[1]
+	}
+
+	token := os.Getenv("DEPRO_TOKEN")
+	if token != "" {
+		config.Token = token
+	}
+
+	server := os.Getenv("DEPRO_SERVER")
+	if server != "" {
+		config.Server = server
+	}
+
+	datacenter := os.Getenv("DEPRO_DATACENTER")
+	if datacenter != "" {
+		config.Datacenter = datacenter
+	}
+
+	prefix := os.Getenv("DEPRO_PREFIX")
+	if prefix != "" {
+		config.Prefix = prefix
+	}
 }
 
 // Finalize is responsible for performing any final conversions, such as

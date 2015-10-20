@@ -59,7 +59,16 @@ func DefaultConfig() *Config {
 		Deployments: []DeploymentConfig{},
 	}
 
+	LoadEnvironment(&config)
+
 	return &config
+}
+
+func LoadEnvironment(config *Config) {
+	name := os.Getenv("DEPRO_NAME")
+	if name != "" {
+		config.Name = name
+	}
 }
 
 // ReadConfig reads a configuration file from the given path and returns it.

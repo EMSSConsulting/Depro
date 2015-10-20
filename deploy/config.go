@@ -34,6 +34,8 @@ func DefaultConfig() *Config {
 		Nodes:  1,
 	}
 
+	LoadEnvironment(&config)
+
 	return &config
 }
 
@@ -69,6 +71,10 @@ func ParseFlags(config *Config, args []string, flags *flag.FlagSet) error {
 	}
 
 	return nil
+}
+
+func LoadEnvironment(config *Config) {
+
 }
 
 // ReadConfig reads a configuration file from the given path and returns it.

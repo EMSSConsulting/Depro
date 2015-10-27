@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -20,16 +21,19 @@ import (
 type Deployment struct {
 	Config *DeploymentConfig
 
-	agentConfig *Config
-	client      *api.Client
-	ui          cli.Ui
-	session     *waiter.Session
-	versions    map[string]*Version
+	agentConfig    *Config
+	client         *api.Client
+	ui             cli.Ui
+	session        *waiter.Session
+	versions       map[string]*Version
 
-	deployVersion   chan string
-	rolloutVersion  chan string
-	cleanVersion    chan string
-	registerVersion chan string
+	log *log.Logger
+	err *log.Logger
+
+	deployVersion   chan *Version
+	rolloutVersion  chan *Version
+	cleanVersion    chan *Version
+	registerVersion chan *Version
 }
 
 func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
@@ -41,10 +45,13 @@ func NewDeployment(operation *Operation, config *DeploymentConfig) *Deployment {
 		ui:          operation.UI,
 		versions:    map[string]*Version{},
 
-		deployVersion:   make(chan string),
-		rolloutVersion:  make(chan string),
-		cleanVersion:    make(chan string),
-		registerVersion: make(chan string),
+		log: log.New(os.Stdout, fmt.Sprintf("[%s]", config.ID), log.Ltime),
+		err: log.New(os.Stderr, fmt.Sprintf("ERROR: [%s]", config.ID), log.Ltime|log.Lshortfile),
+
+		deployVersion:   make(chan *Version),
+		rolloutVersion:  make(chan *Version),
+		cleanVersion:    make(chan *Version),
+		registerVersion: make(chan *Version),
 	}
 
 	return d
@@ -65,11 +72,11 @@ func (d *Deployment) fullPath(version string) string {
 func (d *Deployment) directory(version string) (os.FileInfo, error) {
 	f, err := os.Open(d.Config.Path)
 
-	defer f.Close()
-
 	if err != nil {
 		return nil, err
 	}
+
+	defer f.Close()
 
 	fInfo, err := f.Stat()
 	if err != nil {
@@ -91,6 +98,9 @@ func (d *Deployment) directory(version string) (os.FileInfo, error) {
 		}
 	}
 
+	panic(fmt.Errorf("deployment directory for {%s} not found\n", version))
+	d.err.Printf("deployment directory for {%s} not found\n", version)
+
 	return nil, fmt.Errorf("Could not find a deployment directory called '%s'", version)
 }
 
@@ -99,6 +109,7 @@ func (d *Deployment) currentVersion() string {
 
 	fContents, err := ioutil.ReadFile(currentVersionFilePath)
 	if err != nil {
+		d.log.Printf("no current version file present\n")
 		return ""
 	}
 
@@ -123,6 +134,7 @@ func (d *Deployment) availableVersions() ([]string, error) {
 	}
 
 	if !fInfo.IsDir() {
+		d.err.Printf("deployment path {%s} was not a directory\n", d.Config.Path)
 		return nil, fmt.Errorf("Expected deployment path '%s' to be a directory", d.Config.Path)
 	}
 
@@ -142,6 +154,8 @@ func (d *Deployment) availableVersions() ([]string, error) {
 }
 
 func (d *Deployment) fetchVersions(waitIndex uint64) ([]string, uint64, error) {
+	d.log.Printf("fetching available versions\n")
+
 	kv := d.client.KV()
 
 	keys, meta, err := kv.Keys(fmt.Sprintf("%s/", d.Config.Prefix), "/", &api.QueryOptions{
@@ -170,6 +184,8 @@ func (d *Deployment) fetchVersions(waitIndex uint64) ([]string, uint64, error) {
 }
 
 func (d *Deployment) fetchCurrentVersion(waitIndex uint64) (string, uint64, error) {
+	d.log.Printf("fetching current version\n")
+
 	kv := d.client.KV()
 
 	key, meta, err := kv.Get(fmt.Sprintf("%s/current", d.Config.Prefix), &api.QueryOptions{
@@ -194,22 +210,58 @@ func (d *Deployment) diffVersions(oldVersions, newVersions []string) {
 	for _, id := range oldVersions {
 		_, exists := newVersionsSet[id]
 		if !exists && d.cleanVersion != nil {
-			d.cleanVersion <- id
+			d.log.Printf("got remove {%s}\n", id)
+
+			version, exists := d.versions[id]
+			if exists {
+				d.cleanVersion <- version
+			}
 		}
 	}
 
 	for _, id := range newVersions {
 		_, exists := oldVersionsSet[id]
 		if !exists && d.deployVersion != nil {
-			d.deployVersion <- id
+			d.log.Printf("got deploy {%s}\n", id)
+			version, exists := d.versions[id]
+			if !exists {
+				version = newVersion(d, id)
+				d.versions[id] = version
+
+				d.registerVersion <- version
+			}
+
+			if version.exists() {
+				if version.ID == d.currentVersion() {
+					d.rolloutVersion <- version
+				} else {
+					version.setState("available", false)
+				}
+			} else {
+				d.deployVersion <- version
+			}
 		}
 	}
 }
 
-func (d *Deployment) diffCurrentVersion(oldVersion, newVersion string) {
-	if oldVersion != newVersion {
-		if newVersion != "" && d.rolloutVersion != nil {
-			d.rolloutVersion <- newVersion
+func (d *Deployment) diffCurrentVersion(oldVer, newVer string) {
+	if oldVer != newVer {
+		if newVer != "" && d.rolloutVersion != nil {
+			d.log.Printf("got rollout {%s}\n", newVer)
+
+			version, exists := d.versions[newVer]
+			if !exists {
+				version = newVersion(d, newVer)
+				d.versions[newVer] = version
+
+				d.registerVersion <- version
+			}
+
+			if !version.exists() {
+				d.deployVersion <- version
+			} else {
+				d.rolloutVersion <- version
+			}
 		}
 	}
 }
@@ -266,74 +318,38 @@ func (d *Deployment) Run() error {
 	d.session = session
 
 	go func() {
-		for id := range d.registerVersion {
-			version, exists := d.versions[id]
-
-			if !exists {
-				continue
-			}
-
+		for version := range d.registerVersion {
 			go func() {
 				err := version.register()
 				if err != nil {
+					d.err.Printf("could not register {%s}: %s\n", version.ID, err)
 					d.ui.Error(fmt.Sprintf("[%s] version '%s' not registered: %s", d.Config.ID, version.ID, err))
-				}
-			}()
-
-			go func() {
-				if version.exists() {
-					version.state <- "available"
-				} else {
-					version.close <- struct{}{}
 				}
 			}()
 		}
 	}()
 
 	go func() {
-		for id := range d.deployVersion {
-			version, exists := d.versions[id]
-
-			if !exists {
-				version = newVersion(d, id)
-				d.versions[id] = version
-				d.registerVersion <- id
-			}
-
+		for version := range d.deployVersion {
 			if !version.exists() {
 				output, err := version.deploy()
 				if err != nil {
 					d.ui.Error(fmt.Sprintf("[%s] version '%s' deployment failed: %s", d.Config.ID, version.ID, err))
 				} else {
-					d.ui.Output(fmt.Sprintf("[%s] version '%s' deployed", d.Config.ID, id))
+					d.ui.Output(fmt.Sprintf("[%s] version '%s' deployed", d.Config.ID, version.ID))
 				}
 				d.ui.Info(output)
 			}
 
 			// Rollout this version since it has only been deployed now
-			if id == d.currentVersion() {
-				d.rolloutVersion <- id
+			if version.ID == d.currentVersion() {
+				d.rolloutVersion <- version
 			}
 		}
 	}()
 
 	go func() {
-		for id := range d.rolloutVersion {
-			version, exists := d.versions[id]
-			if !exists {
-				version = newVersion(d, id)
-				d.versions[id] = version
-
-				if !version.exists() {
-					version.close <- struct{}{}
-					d.ui.Error(fmt.Sprintf("[%s] version '%s' not found", d.Config.ID, id))
-					continue
-				} else {
-					d.registerVersion <- id
-					version.state <- "available"
-				}
-			}
-
+		for version := range d.rolloutVersion {
 			output, err := version.rollout()
 			if err != nil {
 				d.ui.Error(fmt.Sprintf("[%s] version '%s' rollout failed: %s", d.Config.ID, version.ID, err))
@@ -341,36 +357,21 @@ func (d *Deployment) Run() error {
 
 			d.ui.Info(output)
 
-			if err == nil {
-				for id2, version2 := range d.versions {
-					if id == id2 {
-						continue
-					} else if version2.exists() {
-						version2.setState("available")
-					}
-				}
-
-				err = d.updateCurrentVersion(id)
-				if err != nil {
-					d.ui.Error(fmt.Sprintf("[%s] version '%s' rollout not persisted: %s", d.Config.ID, version.ID, err))
+			for _, otherVersion := range d.versions {
+				if otherVersion != version && otherVersion.exists() {
+					otherVersion.setState("available", true)
 				}
 			}
 		}
 	}()
 
 	go func() {
-		for id := range d.cleanVersion {
-			version, exists := d.versions[id]
-
-			if !exists {
-				continue
-			}
-
+		for version := range d.cleanVersion {
 			output, err := version.clean()
 			if err != nil {
 				d.ui.Error(fmt.Sprintf("[%s] version '%s' cleanup failed: %s", d.Config.ID, version.ID, err))
 			} else {
-				d.ui.Output(fmt.Sprintf("[%s] version '%s' removed", d.Config.ID, id))
+				d.ui.Output(fmt.Sprintf("[%s] version '%s' removed", d.Config.ID, version.ID))
 			}
 			d.ui.Info(output)
 		}

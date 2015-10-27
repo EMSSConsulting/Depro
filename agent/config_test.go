@@ -2,9 +2,9 @@ package agent
 
 import (
 	"bytes"
+	"github.com/EMSSConsulting/Depro/common"
 	"testing"
 	"time"
-	"github.com/EMSSConsulting/Depro/common"
 )
 
 func TestDecodeConfig_Server(t *testing.T) {

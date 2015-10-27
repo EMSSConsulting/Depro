@@ -34,8 +34,8 @@ func DefaultConfig() Config {
 		Datacenter:  "",
 		Token:       "",
 		Prefix:      "deploy/versions",
-		WaitTime:    10 * time.Minute,
-		WaitTimeRaw: "10m",
+		WaitTime:    1 * time.Second,
+		WaitTimeRaw: "1s",
 		AllowStale:  true,
 	}
 

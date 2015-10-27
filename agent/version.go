@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -16,10 +17,12 @@ type Version struct {
 
 	deployment *Deployment
 	state      chan string
+	lastState  string
 	close      chan struct{}
 	client     *api.Client
 	customer   *waiter.Customer
 	registered bool
+	log        *log.Logger
 }
 
 func newVersion(deployment *Deployment, id string) *Version {
@@ -28,30 +31,23 @@ func newVersion(deployment *Deployment, id string) *Version {
 		deployment: deployment,
 		client:     deployment.client,
 		state:      make(chan string),
+		lastState:  "unregistered",
 		close:      make(chan struct{}),
+		log:        log.New(os.Stdout, fmt.Sprintf("[%s@%s]", deployment.Config.ID, id), log.Ltime),
 	}
 
 	v.customer = waiter.NewCustomer(v.client, deployment.versionPrefix(id), deployment.agentConfig.Name, v.state)
-
-	go func() {
-		select {
-		case <-v.close:
-			close(v.state)
-			delete(v.deployment.versions, v.ID)
-			v.state = make(chan string)
-		}
-	}()
 
 	return v
 }
 
 func (v *Version) deploy() (string, error) {
-	v.setState("deploying")
+	v.setState("deploying", true)
 	output := fmt.Sprintf("Preparing directory '%s'\n", v.fullPath())
 
 	err := v.recreateDirectory()
 	if err != nil {
-		v.state <- "failed"
+		v.setState("failed", false)
 		return "", err
 	}
 
@@ -60,42 +56,42 @@ func (v *Version) deploy() (string, error) {
 
 		task, err := executor.NewTask(v.deployment.Config.Deploy, nil, nil)
 		if err != nil {
-			v.state <- "failed"
+			v.setState("failed", false)
 			return output, err
 		}
 
 		cmdOutput, err := ex.RunOutput(task)
 		output = output + string(cmdOutput)
 		if err != nil {
-			v.state <- "failed"
+			v.setState("failed", false)
 			return output, err
 		}
 	}
 
-	v.state <- "available"
+	v.setState("available", false)
 	return output, nil
 }
 
 func (v *Version) rollout() (string, error) {
 	output := ""
 
-	v.setState("starting")
+	v.setState("starting", true)
 	ex := v.getExecutor()
 
 	task, err := executor.NewTask(v.deployment.Config.Rollout, nil, nil)
 	if err != nil {
-		v.state <- "failed"
+		v.setState("failed", false)
 		return output, err
 	}
 
 	cmdOutput, err := ex.RunOutput(task)
 	output = output + string(cmdOutput)
 	if err != nil {
-		v.state <- "failed"
+		v.setState("failed", false)
 		return output, err
 	}
 
-	v.state <- "active"
+	v.setState("active", false)
 	return output, nil
 }
 
@@ -107,7 +103,7 @@ func (v *Version) clean() (string, error) {
 
 		task, err := executor.NewTask(v.deployment.Config.Clean, nil, nil)
 		if err != nil {
-			v.state <- "failed"
+			v.setState("failed", false)
 			return output, err
 		}
 
@@ -120,7 +116,7 @@ func (v *Version) clean() (string, error) {
 		return output, err
 	}
 
-	v.close <- struct{}{}
+	v.shutdown()
 
 	return output, nil
 }
@@ -128,6 +124,7 @@ func (v *Version) clean() (string, error) {
 // register publishes an entry in the correct version node on the server
 // to inform watchers of the state of the local copy of this version.
 func (v *Version) register() error {
+	v.log.Printf("registering\n")
 	v.registered = true
 	defer func() { v.registered = false }()
 
@@ -140,26 +137,54 @@ func (v *Version) register() error {
 
 		select {
 		case <-shutdownCh:
-			v.close <- struct{}{}
+			v.shutdown()
 		case <-doneCh:
-			v.close <- struct{}{}
+			v.shutdown()
 		}
 	}()
 
 	err := v.customer.Run(v.deployment.session)
 
-	doneCh <- struct{}{}
+	if err != nil {
+		v.log.Printf("registration failed: %s", err)
+	} else {
+		v.log.Printf("deregistered")
+	}
+
+	close(doneCh)
 	return err
+}
+
+func (v *Version) shutdown() {
+	if v.state == nil {
+		return
+	}
+
+	v.log.Printf("shutting down\n")
+
+	close(v.state)
+	close(v.close)
+	delete(v.deployment.versions, v.ID)
+
+	v.state = nil
 }
 
 // setState sets the state of this version entry in a non-blocking manner.
 // It should only be called once v.register() has been started in a goroutine.
 // Failure to do so will result in your state change being lost.
-func (v *Version) setState(state string) {
-	select {
-	case v.state <- state:
-	default:
+func (v *Version) setState(state string, async bool) {
+	v.log.Printf("{%s}\n", state)
+
+	if async {
+		select {
+		case v.state <- state:
+		default:
+		}
+	} else {
+		v.state <- state
 	}
+
+	v.lastState = state
 }
 
 func (v *Version) getExecutor() executor.Executor {
@@ -201,6 +226,22 @@ func (v *Version) removeDirectory() error {
 }
 
 func (v *Version) exists() bool {
-	_, err := v.directory()
-	return err == nil || os.IsNotExist(err)
+	f, err := os.Open(v.deployment.fullPath(v.ID))
+
+	if err != nil {
+		return false
+	}
+
+	defer f.Close()
+
+	fInfo, err := f.Stat()
+	if err != nil {
+		return false
+	}
+
+	if !fInfo.IsDir() {
+		return false
+	}
+
+	return true
 }

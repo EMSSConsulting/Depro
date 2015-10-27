@@ -279,10 +279,10 @@ func (d *Deployment) Run() error {
 					d.ui.Error(fmt.Sprintf("[%s] version '%s' not registered: %s", d.Config.ID, version.ID, err))
 				}
 			}()
-			
+
 			go func() {
 				if version.exists() {
-					version.state <- "available" 
+					version.state <- "available"
 				} else {
 					version.close <- struct{}{}
 				}

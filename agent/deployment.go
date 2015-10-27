@@ -256,11 +256,12 @@ func (d *Deployment) watchCurrentVersion() error {
 
 func (d *Deployment) Run() error {
 	session, err := waiter.NewSession(d.client, d.Config.ID)
-	defer session.Close()
 
 	if err != nil {
 		return err
 	}
+
+	defer session.Close()
 
 	d.session = session
 

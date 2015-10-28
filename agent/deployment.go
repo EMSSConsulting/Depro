@@ -154,8 +154,6 @@ func (d *Deployment) availableVersions() ([]string, error) {
 }
 
 func (d *Deployment) fetchVersions(waitIndex uint64) ([]string, uint64, error) {
-	d.log.Printf("fetching available versions\n")
-
 	kv := d.client.KV()
 
 	keys, meta, err := kv.Keys(fmt.Sprintf("%s/", d.Config.Prefix), "/", &api.QueryOptions{
@@ -184,8 +182,6 @@ func (d *Deployment) fetchVersions(waitIndex uint64) ([]string, uint64, error) {
 }
 
 func (d *Deployment) fetchCurrentVersion(waitIndex uint64) (string, uint64, error) {
-	d.log.Printf("fetching current version\n")
-
 	kv := d.client.KV()
 
 	key, meta, err := kv.Get(fmt.Sprintf("%s/current", d.Config.Prefix), &api.QueryOptions{
